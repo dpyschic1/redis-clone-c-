@@ -6,7 +6,7 @@ using System.Text;
 Console.WriteLine("Logs from your program will appear here!");
 
 // Uncomment this block to pass the first stage
-TcpListener server = new TcpListener(IPAddress.Any, 6381);
+TcpListener server = new TcpListener(IPAddress.Any, 6379);
 server.Start();
 var sock = server.AcceptSocket();
 while (true)
