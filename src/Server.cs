@@ -17,15 +17,7 @@ while (true)
 
     using var sock = server.AcceptSocket(); // wait for client
     Console.WriteLine("Socket accepted");
-    sock.Receive(bytes);
-    var recieved = Encoding.UTF8.GetString(bytes);
-    Console.WriteLine("Recieved : {0}", recieved);
-
-    string response = "Invalid token";
-    if (recieved.Contains("PING"))
-    {
-        response = "+PONG\r\n";
-    }
+    string response = "+PONG\r\n";
 
     bytes = Encoding.UTF8.GetBytes(response);
 
