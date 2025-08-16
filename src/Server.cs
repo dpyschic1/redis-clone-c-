@@ -6,7 +6,7 @@ using System.Text;
 Console.WriteLine("Logs from your program will appear here!");
 
 // Uncomment this block to pass the first stage
-TcpListener server = new TcpListener(IPAddress.Any, 7979);
+TcpListener server = new TcpListener(IPAddress.Any, 6379);
 server.Start();
 string response = "+PONG\r\n";
 Byte[] bytes = Encoding.UTF8.GetBytes(response);
