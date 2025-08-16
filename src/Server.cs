@@ -10,15 +10,32 @@ TcpListener server = new TcpListener(IPAddress.Any, 6379);
 server.Start();
 string response = "+PONG\r\n";
 Byte[] bytes = Encoding.UTF8.GetBytes(response);
+List<Socket> sockets = [];
+
 while (true)
 {
-    byte[] buff = new byte[1024];
-    var sock = server.AcceptSocket();
-    while (true)
+    if (server.Pending())
     {
-        int bytesRead = sock.Receive(buff);
-        if (bytesRead == 0)
-            break;
-        sock.Send(bytes);
+        var incomingSocket = server.AcceptSocket();
+        incomingSocket.Blocking = false;
+        sockets.Add(incomingSocket);
+    }
+
+
+    foreach (var sock in sockets)
+    {
+        byte[] buff = new byte[1024];
+        if (sock.Available > 0)
+        {
+            int bytesRead = sock.Receive(buff);
+
+            if (bytesRead == 0)
+            { 
+                sock.Disconnect(false);
+                sockets.Remove(sock);
+                continue;   
+            }
+            sock.Send(bytes);
+        }
     }
 }
