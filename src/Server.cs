@@ -9,12 +9,13 @@ Console.WriteLine("Logs from your program will appear here!");
 TcpListener server = new TcpListener(IPAddress.Any, 6379);
 server.Start();
 var sock = server.AcceptSocket();
+Byte[] bytes = [];
 while (true)
 {
     Console.WriteLine("Waiting for connection... ");
     Console.WriteLine("Socket accepted");
     string response = "+PONG\r\n";
-    var bytes = Encoding.UTF8.GetBytes(response);
+    bytes = Encoding.UTF8.GetBytes(response);
     sock.Send(bytes);
     Console.WriteLine("Sent : {0}", response);
 }
