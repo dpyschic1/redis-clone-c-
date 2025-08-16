@@ -6,16 +6,19 @@ using System.Text;
 Console.WriteLine("Logs from your program will appear here!");
 
 // Uncomment this block to pass the first stage
-TcpListener server = new TcpListener(IPAddress.Any, 6379);
+TcpListener server = new TcpListener(IPAddress.Any, 7979);
 server.Start();
-var sock = server.AcceptSocket();
-Byte[] bytes = [];
+string response = "+PONG\r\n";
+Byte[] bytes = Encoding.UTF8.GetBytes(response);
 while (true)
 {
-    Console.WriteLine("Waiting for connection... ");
-    Console.WriteLine("Socket accepted");
-    string response = "+PONG\r\n";
-    bytes = Encoding.UTF8.GetBytes(response);
-    sock.Send(bytes);
-    Console.WriteLine("Sent : {0}", response);
+    byte[] buff = [];
+    var sock = server.AcceptSocket();
+    while (true)
+    {
+        int bytesRead = sock.Receive(buff);
+        if (bytesRead == 0)
+            break;
+        sock.Send(bytes);
+    }
 }
