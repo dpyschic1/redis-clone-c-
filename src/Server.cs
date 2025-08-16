@@ -12,7 +12,7 @@ string response = "+PONG\r\n";
 Byte[] bytes = Encoding.UTF8.GetBytes(response);
 while (true)
 {
-    byte[] buff = [];
+    byte[] buff = new byte[1024];
     var sock = server.AcceptSocket();
     while (true)
     {
