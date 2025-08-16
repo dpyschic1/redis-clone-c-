@@ -22,7 +22,7 @@ while (true)
     Console.WriteLine("Recieved : {0}", recieved);
 
     string response = "Invalid token";
-    if (recieved.ToUpper() == "PING")
+    if (recieved.Contains("PING"))
     {
         response = "+PONG\r\n";
     }
