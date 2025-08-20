@@ -55,16 +55,18 @@ public class Database
     public List<string> ListRange(string key, int startIndex, int endIndex)
     {
         if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
-        if (startIndex < 0 || endIndex < startIndex) throw new ArgumentOutOfRangeException();
+        if (startIndex < 0) throw new ArgumentOutOfRangeException();
+        if (startIndex > endIndex) return new List<string>();
 
         if (_dataStore.TryGetValue(key, out var value) && value.Type == RedisDataType.List)
         {
+            if (startIndex > value.ListValue.Count - 1) return new List<string>();
+            var stopIndex = endIndex > value.ListValue.Count - 1 ? value.ListValue.Count - 1 : endIndex;
             return value.ListValue
                 .Skip(startIndex)
-                .Take(endIndex - startIndex + 1)
+                .Take(stopIndex - startIndex + 1)
                 .ToList();
         }
-        
         return new List<string>();
     }
 }

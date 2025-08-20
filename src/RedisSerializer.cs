@@ -59,6 +59,10 @@ public class RedisSerializer
                     WriteStringAndCrLf(s, "-1");
                     return;
                 }
+                else if(node.Items.Count == 0)
+                {
+                    WriteStringAndCrLf(s, "0");
+                }
                 else
                 {
                     WriteStringAndCrLf(s, node.Items.Count.ToString());
