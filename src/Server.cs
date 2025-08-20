@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
+using Server;
 
 // You can use print statements as follows for debugging, they'll be visible when running tests.
 Console.WriteLine("Logs from your program will appear here!");
@@ -8,8 +8,6 @@ Console.WriteLine("Logs from your program will appear here!");
 // Uncomment this block to pass the first stage
 TcpListener server = new TcpListener(IPAddress.Any, 6379);
 server.Start();
-string response = "+PONG\r\n";
-Byte[] bytes = Encoding.UTF8.GetBytes(response);
 List<Socket> sockets = [];
 
 while (true)
@@ -35,7 +33,14 @@ while (true)
                 sockets.Remove(sock);
                 continue;   
             }
-            sock.Send(bytes);
+
+            var redisParser = new RedisProtocolParser();
+            var commandExecutor = new CommandExecutor();
+            var redisSerializer = new RedisSerializer();
+            var parsedCommands = redisParser.Parse(buff);
+            var responseCommand = commandExecutor.Execute(parsedCommands);
+            var responseByte = redisSerializer.Serialize(responseCommand);
+            sock.Send(responseByte);
         }
     }
 }
