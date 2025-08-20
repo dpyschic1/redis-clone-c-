@@ -40,8 +40,8 @@ public class CommandExecutor
             case "LLEN": return HandleLlen(args);
             case "RPUSH": return HandleRPush(args);
             case "LPUSH": return HandleLPush(args);
-            case "LRANGE": return HandleLRange(args);
             case "LPOP" : return HandleLPop(args);
+            case "LRANGE": return HandleLRange(args);
             default: return MakeError($"ERR unknown command '{cmdName}'");
         }
     }
