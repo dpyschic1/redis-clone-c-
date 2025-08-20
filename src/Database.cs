@@ -57,6 +57,9 @@ public class Database
         if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
         if (values == null || values.Count == 0) throw new ArgumentNullException(nameof(values));
 
+        values.Reverse();
+        
+
         if (_dataStore.TryGetValue(key, out var existingValue) && existingValue.Type == RedisDataType.List)
         {
             existingValue.ListValue.InsertRange(0, values);
