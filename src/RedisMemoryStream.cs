@@ -10,7 +10,7 @@ public class RedisMemoryStream : MemoryStream
     {
         int num = base.ReadByte();
         base.Position += 2;
-        return num;
+        return num - '0';
     }
 
     public string ReadLine()
