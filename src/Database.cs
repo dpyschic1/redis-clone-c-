@@ -48,7 +48,7 @@ public class Database
 
         return 0;
     }
-    
+
     public int ListRightPush(string key, List<string> values)
     {
         if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
@@ -80,6 +80,19 @@ public class Database
 
         _dataStore[key] = new RedisValue(RedisDataType.List, values);
         return values.Count;
+    }
+
+    public string ListPop(string key)
+    {
+        if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
+        if (_dataStore.TryGetValue(key, out var value) && value.Type == RedisDataType.List && value.ListValue.Count > 0)
+        {
+            var firstElement = value.ListValue[0];
+            value.ListValue.Remove(firstElement);
+            return firstElement;
+        }
+
+        return null;
     }
 
     public List<string> ListRange(string key, int startIndex, int endIndex)
