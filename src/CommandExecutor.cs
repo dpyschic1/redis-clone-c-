@@ -61,7 +61,7 @@ public class CommandExecutor
     {
         if (args.Count > 2) return MakeError("ERR wrong number of arguments for 'lpop' commnad");
         var key = args[0];
-        var num = int.Parse(args[1]);
+        var num = args.Count > 1 ? int.Parse(args[1]) : 1;
         var value = Database.Instance.ListPop(key, num);
         
         return value == null ? MakeNullBulkString() : MakeArray(value);
