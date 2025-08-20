@@ -58,24 +58,23 @@ public class Database
         
         if (_dataStore.TryGetValue(key, out var value) && value.Type == RedisDataType.List)
         {
-            if (Math.Abs(startIndex) > value.ListValue.Count - 1) return new List<string>();
-
             if (endIndex < 0)
             {
                 endIndex += value.ListValue.Count;
+                endIndex = endIndex > value.ListValue.Count - 1 ? value.ListValue.Count - 1 : endIndex;
             }
-            
+
             if (startIndex < 0)
             {
                 startIndex += value.ListValue.Count;
+                startIndex = startIndex < 0 ? 0 : startIndex;
             }
-
+            
             if (startIndex > endIndex) return new List<string>();
 
-            var stopIndex = endIndex > value.ListValue.Count - 1 ? value.ListValue.Count - 1 : endIndex;
             return value.ListValue
                 .Skip(startIndex)
-                .Take(stopIndex - startIndex + 1)
+                .Take(endIndex - startIndex + 1)
                 .ToList();
         }
         
