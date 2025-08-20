@@ -13,12 +13,12 @@ public class Database
         _dataStore = new ConcurrentDictionary<string, RedisValue>();
     }
 
-    public bool Set(string key, string value)
+    public bool Set(string key, string value, TimeSpan? expiry = null)
     {
         if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
         if (value == null) throw new ArgumentNullException(nameof(value));
 
-        _dataStore[key] = new RedisValue(RedisDataType.String, value);
+        _dataStore[key] = new RedisValue(RedisDataType.String, value, expiry);
         return true;
     }
 
@@ -26,6 +26,11 @@ public class Database
     {
         if (_dataStore.TryGetValue(key, out var value))
         {
+            if (value.IsExpired)
+            {
+                _dataStore.TryRemove(key, out _);
+                return null;
+            }
             return value.StringValue;
         }
 
@@ -37,14 +42,17 @@ public class RedisValue
 {
     public RedisDataType Type { get; }
     public string StringValue { get; }
+    public long ExpiryTime { get; }
+    public bool IsExpired => ExpiryTime < DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-    public RedisValue(RedisDataType type, object value)
+    public RedisValue(RedisDataType type, object value, TimeSpan? expiry = null)
     {
         Type = type;
         switch (type)
         {
             case RedisDataType.String:
                 StringValue = value as string;
+                ExpiryTime = expiry.HasValue ? DateTimeOffset.UtcNow.Add(expiry.Value).ToUnixTimeMilliseconds() : long.MaxValue;
                 break;
             default:
                 throw new ArgumentException("Invalid Redis data type");
