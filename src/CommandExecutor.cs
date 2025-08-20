@@ -63,8 +63,13 @@ public class CommandExecutor
         var key = args[0];
         var num = args.Count > 1 ? int.Parse(args[1]) : 1;
         var value = Database.Instance.ListPop(key, num);
-        
-        return value == null ? MakeNullBulkString() : MakeArray(value);
+        return value switch
+        {
+            { Count: > 1 } => MakeArray(value),
+            { Count: 1 } => MakeBulkString(value[0]),
+            null => MakeNullBulkString(),
+            _ => MakeNullBulkString()
+        };
     }
 
     private RedisCommand HandleLlen(List<string> args)
