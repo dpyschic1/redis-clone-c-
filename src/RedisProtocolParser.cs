@@ -10,6 +10,15 @@ public class RedisProtocolParser
     private const byte MINUS = (byte)'-';
     private const byte INTEGER = (byte)':';
 
+    public bool TryParse(string input, out RedisCommand output, out int consumed)
+    {
+        var inputBytes = Encoding.ASCII.GetBytes(input);
+        using var memStream = new RedisMemoryStream(inputBytes);
+        output = ParseNode(memStream);
+        consumed = (int)memStream.Position;
+        return output != null;
+    }
+
     public RedisCommand Parse(byte[] input)
     {
         using var memStream = new RedisMemoryStream(input);
@@ -27,7 +36,7 @@ public class RedisProtocolParser
             PLUS => ParseSimpleString(memStream),
             MINUS => ParseError(memStream),
             INTEGER => ParseInteger(memStream),
-            _ => throw new NotSupportedException($"Unsupported Redis reply type: {b}"),
+            _ => throw new NotSupportedException($"Unsupported Redis type: {b}"),
         };
     }
 

@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace Server;
 
 public class RedisMemoryStream : MemoryStream
@@ -8,9 +10,30 @@ public class RedisMemoryStream : MemoryStream
 
     public int ReadIntCrLF()
     {
-        int num = base.ReadByte();
-        base.Position += 2;
-        return num - '0';
+        var bytes = new List<byte>();
+
+        while (true)
+        {
+            int b = ReadByte();
+            if (b == -1)
+                throw new EndOfStreamException("Unexpected end of stream while reading integer.");
+            if(b == '\r')
+            {
+                int next = ReadByte();
+                if (next == '\n')
+                    break;
+                bytes.Add((byte)b);
+                bytes.Add((byte)next);
+            }
+            else
+            {
+                bytes.Add((byte)b);
+            }
+        }
+
+        var num = Encoding.ASCII.GetString(bytes.ToArray());
+
+        return int.Parse(num);
     }
 
     public string ReadLine()
@@ -34,7 +57,7 @@ public class RedisMemoryStream : MemoryStream
             bytes.Add((byte)b);
         }
     }
-    return System.Text.Encoding.UTF8.GetString(bytes.ToArray());
+    return Encoding.ASCII.GetString(bytes.ToArray());
 }
 
     public void SkipCrLf()
