@@ -52,10 +52,10 @@ public class CommandExecutor
 
     private RedisCommand HandleSet(List<string> args)
     {
-        if (args.Count is not 2 or 4) return MakeError("ERR wrong number of arguments for 'set' command");
+        if (args.Count < 2 || args.Count > 4) return MakeError("ERR wrong number of arguments for 'set' command");
         var key = args[0];
         var value = args[1];
-        if (args.Count == 4 && args[3].ToLowerInvariant() == "px" && long.TryParse(args[4], out var expiry))
+        if (args.Count == 4 && args[2].ToLowerInvariant() == "px" && long.TryParse(args[3], out var expiry))
         {
             Database.Instance.Set(key, value, TimeSpan.FromMilliseconds(expiry));
         }
