@@ -1,3 +1,5 @@
+using System.Reflection.Metadata;
+
 namespace Server;
 
 public class CommandExecutor
@@ -33,8 +35,9 @@ public class CommandExecutor
         {
             case "ECHO": return HandleEcho(args);
             case "PING": return HandlePing(args);
-            case "SET" : return HandleSet(args);
-            case "GET" : return HandleGet(args);
+            case "SET": return HandleSet(args);
+            case "GET": return HandleGet(args);
+            case "RPUSH": return HandleRPUSH(args);
             default: return MakeError($"ERR unknown command '{cmdName}'");
         }
     }
@@ -50,6 +53,14 @@ public class CommandExecutor
         return argNode.ToString();
     }
 
+    private RedisCommand HandleRPUSH(List<string> args)
+    {
+        if (args.Count < 2) return MakeError("ERR wrong number of arguments for 'lpush' command");
+        var key = args[0];
+        var values = args.Skip(1).ToList();
+        var count = Database.Instance.ListRightPush(key, values);
+        return MakeInteger(count);
+    }
     private RedisCommand HandleSet(List<string> args)
     {
         if (args.Count < 2 || args.Count > 4) return MakeError("ERR wrong number of arguments for 'set' command");
@@ -111,6 +122,15 @@ public class CommandExecutor
         {
             Type = s == null ? RedisType.NullBulkString : RedisType.BulkString,
             StringValue = s
+        };
+    }
+    
+    private RedisCommand MakeInteger(long value)
+    {
+        return new RedisCommand
+        {
+            Type = RedisType.Integer,
+            IntegerValue = value
         };
     }
 }

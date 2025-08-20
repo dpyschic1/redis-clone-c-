@@ -36,12 +36,28 @@ public class Database
 
         return null;
     }
+
+    public int ListRightPush(string key, List<string> values)
+    {
+        if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
+        if (values == null || values.Count == 0) throw new ArgumentNullException(nameof(values));
+
+        if (_dataStore.TryGetValue(key, out var existingValue) && existingValue.Type == RedisDataType.List)
+        {
+            existingValue.ListValue.AddRange(values);
+            return existingValue.ListValue.Count;
+        }
+
+        _dataStore[key] = new RedisValue(RedisDataType.List, values);
+        return values.Count;
+    }
 }
 
 public class RedisValue
 {
     public RedisDataType Type { get; }
     public string StringValue { get; }
+    public List<string> ListValue { get; }
     public long ExpiryTime { get; }
     public bool IsExpired => ExpiryTime < DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
@@ -54,6 +70,10 @@ public class RedisValue
                 StringValue = value as string;
                 ExpiryTime = expiry.HasValue ? DateTimeOffset.UtcNow.Add(expiry.Value).ToUnixTimeMilliseconds() : long.MaxValue;
                 break;
+            case RedisDataType.List:
+                ListValue = value as List<string>;
+                ExpiryTime = expiry.HasValue ? DateTimeOffset.UtcNow.Add(expiry.Value).ToUnixTimeMilliseconds() : long.MaxValue;
+                break;
             default:
                 throw new ArgumentException("Invalid Redis data type");
         }
@@ -62,5 +82,6 @@ public class RedisValue
 
 public enum RedisDataType
 {
-    String
+    String,
+    List
 }
