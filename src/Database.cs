@@ -55,8 +55,7 @@ public class Database
     public List<string> ListRange(string key, int startIndex, int endIndex)
     {
         if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
-        if (startIndex > endIndex) return new List<string>();
-
+        
         if (_dataStore.TryGetValue(key, out var value) && value.Type == RedisDataType.List)
         {
             if (Math.Abs(startIndex) > value.ListValue.Count - 1) return new List<string>();
@@ -70,6 +69,8 @@ public class Database
             {
                 startIndex += value.ListValue.Count;
             }
+
+            if (startIndex > endIndex) return new List<string>();
 
             var stopIndex = endIndex > value.ListValue.Count - 1 ? value.ListValue.Count - 1 : endIndex;
             return value.ListValue
