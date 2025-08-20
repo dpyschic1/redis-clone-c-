@@ -37,6 +37,7 @@ public class CommandExecutor
             case "PING": return HandlePing(args);
             case "SET": return HandleSet(args);
             case "GET": return HandleGet(args);
+            case "LLEN": return HandleLlen(args);
             case "RPUSH": return HandleRPush(args);
             case "LPUSH": return HandleLPush(args);
             case "LRANGE": return HandleLRange(args);
@@ -53,6 +54,14 @@ public class CommandExecutor
             return nestedReply.ToString();
         }
         return argNode.ToString();
+    }
+
+    private RedisCommand HandleLlen(List<string> args)
+    {
+        if (args.Count != 1) return MakeError("ERR wrong number of arguments for 'llen' command");
+        var key = args[0];
+        var length = Database.Instance.ListLength(key);
+        return MakeInteger(length);
     }
 
     private RedisCommand HandleLRange(List<string> args)

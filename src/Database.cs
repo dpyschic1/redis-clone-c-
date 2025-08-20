@@ -37,6 +37,18 @@ public class Database
         return null;
     }
 
+    public int ListLength(string key)
+    {
+        if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
+
+        if (_dataStore.TryGetValue(key, out var value) && value.Type == RedisDataType.List)
+        {
+            return value.ListValue.Count;
+        }
+
+        return 0;
+    }
+    
     public int ListRightPush(string key, List<string> values)
     {
         if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
@@ -58,7 +70,7 @@ public class Database
         if (values == null || values.Count == 0) throw new ArgumentNullException(nameof(values));
 
         values.Reverse();
-        
+
 
         if (_dataStore.TryGetValue(key, out var existingValue) && existingValue.Type == RedisDataType.List)
         {
