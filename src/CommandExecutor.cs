@@ -34,6 +34,7 @@ public class CommandExecutor
             case "ECHO": return HandleEcho(args);
             case "PING": return HandlePing(args);
             case "SET" : return HandleSet(args);
+            case "GET" : return HandleGet(args);
             default: return MakeError($"ERR unknown command '{cmdName}'");
         }
     }
@@ -63,6 +64,7 @@ public class CommandExecutor
         if (args.Count != 1) return MakeError("ERR wrong number of arguments for 'get' command");
         var key = args[0];
         var value = Database.Instance.Get(key);
+        if (value == null) return MakeBulkString(null); // Null bulk string for non-existent key
         return MakeBulkString(value);
     }
 
