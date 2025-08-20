@@ -51,11 +51,26 @@ public class Database
         _dataStore[key] = new RedisValue(RedisDataType.List, values);
         return values.Count;
     }
+    
+    public int ListLeftPush(string key, List<string> values)
+    {
+        if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
+        if (values == null || values.Count == 0) throw new ArgumentNullException(nameof(values));
+
+        if (_dataStore.TryGetValue(key, out var existingValue) && existingValue.Type == RedisDataType.List)
+        {
+            existingValue.ListValue.InsertRange(0, values);
+            return existingValue.ListValue.Count;
+        }
+
+        _dataStore[key] = new RedisValue(RedisDataType.List, values);
+        return values.Count;
+    }
 
     public List<string> ListRange(string key, int startIndex, int endIndex)
     {
         if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
-        
+
         if (_dataStore.TryGetValue(key, out var value) && value.Type == RedisDataType.List)
         {
             if (endIndex < 0)
@@ -69,7 +84,7 @@ public class Database
                 startIndex += value.ListValue.Count;
                 startIndex = startIndex < 0 ? 0 : startIndex;
             }
-            
+
             if (startIndex > endIndex) return new List<string>();
 
             return value.ListValue
@@ -77,7 +92,7 @@ public class Database
                 .Take(endIndex - startIndex + 1)
                 .ToList();
         }
-        
+
         return new List<string>();
     }
 }

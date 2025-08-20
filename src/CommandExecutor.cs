@@ -37,7 +37,8 @@ public class CommandExecutor
             case "PING": return HandlePing(args);
             case "SET": return HandleSet(args);
             case "GET": return HandleGet(args);
-            case "RPUSH": return HandleRPUSH(args);
+            case "RPUSH": return HandleRPush(args);
+            case "LPUSH": return HandleLPush(args);
             case "LRANGE": return HandleLRange(args);
             default: return MakeError($"ERR unknown command '{cmdName}'");
         }
@@ -63,7 +64,16 @@ public class CommandExecutor
         return MakeArray(list);
     }
 
-    private RedisCommand HandleRPUSH(List<string> args)
+    private RedisCommand HandleLPush(List<string> args)
+    {
+        if (args.Count < 2) return MakeError("ERR wrong number of arguments for 'lpush' command");
+        var key = args[0];
+        var values = args.Skip(1).ToList();
+        var count = Database.Instance.ListLeftPush(key, values);
+        return MakeInteger(count);
+    }
+
+    private RedisCommand HandleRPush(List<string> args)
     {
         if (args.Count < 2) return MakeError("ERR wrong number of arguments for 'rpush' command");
         var key = args[0];
