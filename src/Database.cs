@@ -82,14 +82,14 @@ public class Database
         return values.Count;
     }
 
-    public string ListPop(string key)
+    public List<string> ListPop(string key, int num)
     {
         if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
         if (_dataStore.TryGetValue(key, out var value) && value.Type == RedisDataType.List && value.ListValue.Count > 0)
         {
-            var firstElement = value.ListValue[0];
-            value.ListValue.Remove(firstElement);
-            return firstElement;
+            var elements = value.ListValue[0..num];
+            value.ListValue.RemoveRange(0, num);
+            return elements;
         }
 
         return null;

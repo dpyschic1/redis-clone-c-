@@ -59,10 +59,12 @@ public class CommandExecutor
 
     private RedisCommand HandleLPop(List<string> args)
     {
-        if (args.Count != 1) return MakeError("ERR wrong number of arguments for 'lpop' commnad");
+        if (args.Count > 2) return MakeError("ERR wrong number of arguments for 'lpop' commnad");
         var key = args[0];
-        var value = Database.Instance.ListPop(key);
-        return MakeBulkString(value);
+        var num = int.Parse(args[1]);
+        var value = Database.Instance.ListPop(key, num);
+        
+        return value == null ? MakeNullBulkString() : MakeArray(value);
     }
 
     private RedisCommand HandleLlen(List<string> args)
@@ -161,6 +163,14 @@ public class CommandExecutor
         {
             Type = s == null ? RedisType.NullBulkString : RedisType.BulkString,
             StringValue = s
+        };
+    }
+
+    private RedisCommand MakeNullBulkString()
+    {
+        return new RedisCommand
+        {
+            Type = RedisType.NullBulkString
         };
     }
 
