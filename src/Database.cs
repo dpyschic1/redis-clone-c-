@@ -51,6 +51,22 @@ public class Database
         _dataStore[key] = new RedisValue(RedisDataType.List, values);
         return values.Count;
     }
+
+    public List<string> ListRange(string key, int startIndex, int endIndex)
+    {
+        if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
+        if (startIndex < 0 || endIndex < startIndex) throw new ArgumentOutOfRangeException();
+
+        if (_dataStore.TryGetValue(key, out var value) && value.Type == RedisDataType.List)
+        {
+            return value.ListValue
+                .Skip(startIndex)
+                .Take(endIndex - startIndex + 1)
+                .ToList();
+        }
+        
+        return new List<string>();
+    }
 }
 
 public class RedisValue

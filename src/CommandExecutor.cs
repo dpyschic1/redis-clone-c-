@@ -38,6 +38,7 @@ public class CommandExecutor
             case "SET": return HandleSet(args);
             case "GET": return HandleGet(args);
             case "RPUSH": return HandleRPUSH(args);
+            case "LRANGE": return HandleLRange(args);
             default: return MakeError($"ERR unknown command '{cmdName}'");
         }
     }
@@ -53,14 +54,24 @@ public class CommandExecutor
         return argNode.ToString();
     }
 
+    private RedisCommand HandleLRange(List<string> args)
+    {
+        if (args.Count != 3) return MakeError("ERR wrong number of arguments for 'lrange' command");
+        var key = args[0];
+        var values = args.Skip(1).ToList();
+        var list = Database.Instance.ListRange(key, int.Parse(values[0]), int.Parse(values[1]));
+        return MakeArray(list);
+    }
+
     private RedisCommand HandleRPUSH(List<string> args)
     {
-        if (args.Count < 2) return MakeError("ERR wrong number of arguments for 'lpush' command");
+        if (args.Count < 2) return MakeError("ERR wrong number of arguments for 'rpush' command");
         var key = args[0];
         var values = args.Skip(1).ToList();
         var count = Database.Instance.ListRightPush(key, values);
         return MakeInteger(count);
     }
+
     private RedisCommand HandleSet(List<string> args)
     {
         if (args.Count < 2 || args.Count > 4) return MakeError("ERR wrong number of arguments for 'set' command");
@@ -124,13 +135,26 @@ public class CommandExecutor
             StringValue = s
         };
     }
-    
+
     private RedisCommand MakeInteger(long value)
     {
         return new RedisCommand
         {
             Type = RedisType.Integer,
             IntegerValue = value
+        };
+    }
+
+    private RedisCommand MakeArray(List<string> values)
+    {
+        return new RedisCommand
+        {
+            Type = RedisType.Array,
+            Items = values.Select(v => new RedisCommand
+            {
+                Type = RedisType.BulkString,
+                StringValue = v
+            }).ToList()
         };
     }
 }
