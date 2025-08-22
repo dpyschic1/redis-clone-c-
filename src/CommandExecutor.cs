@@ -157,10 +157,7 @@ public class CommandExecutor
             var client = _clientManager.TryUnblockOneForKey(key);
             if (client == null) break;
 
-            var item = values[0];
-            values.RemoveAt(0);
-
-            var reply = MakeArray(new List<string> { key, item });
+            var reply = MakeArray(new List<string> { key, values[0] });
             client.PendingReplies.Enqueue(reply);
 
             _clientManager.RemoveBlockedClientFromAllKeys(client);
