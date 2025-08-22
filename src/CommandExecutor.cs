@@ -4,15 +4,17 @@ namespace Server;
 
 public class CommandExecutor
 {
-    public RedisCommand Execute(RedisCommand node)
+    private readonly ClientStateManager _clientManager = ClientStateManager.Instance;
+
+    public RedisCommand Execute(RedisCommand node, ClientState clientState)
     {
         if (node == null) throw new ArgumentNullException(nameof(node));
         if (!node.IsArray) return MakeError("Protocol error: expected array");
 
-        return ExecuteArrayCommand(node);
+        return ExecuteArrayCommand(node, clientState);
     }
 
-    private RedisCommand ExecuteArrayCommand(RedisCommand arrayNode)
+    private RedisCommand ExecuteArrayCommand(RedisCommand arrayNode, ClientState clientState)
     {
         if (arrayNode.Items?.Count == 0)
         {
@@ -42,6 +44,7 @@ public class CommandExecutor
             case "LPUSH": return HandleLPush(args);
             case "LPOP" : return HandleLPop(args);
             case "LRANGE": return HandleLRange(args);
+            case "BLPOP": return HandleBLPop(args, clientState);
             default: return MakeError($"ERR unknown command '{cmdName}'");
         }
     }
@@ -51,10 +54,39 @@ public class CommandExecutor
         if (argNode == null) return null;
         if (argNode.IsArray)
         {
-            var nestedReply = ExecuteArrayCommand(argNode);
+            var nestedReply = ExecuteArrayCommand(argNode, null);
             return nestedReply.ToString();
         }
         return argNode.ToString();
+    }
+
+    private RedisCommand HandleBLPop(List<string> args, ClientState clientState)
+    {
+        if (args.Count < 2) return MakeError("ERR wrong number of arguments for 'blpop' command");
+
+        if (clientState == null) return MakeError("ERR internal: missing client state for blocking command");
+
+        if (!int.TryParse(args.Last(), out var timeoutMilSec))
+            return MakeError("ERR timeout must be integer");
+
+        var keys = args.Take(args.Count - 1).ToList();
+
+        foreach (var key in keys)
+        {
+            var val = Database.Instance.ListPop(key, 1);
+            if (val != null && val.Count > 0)
+            {
+                return MakeArray(new List<string> { key, val[0] });
+            }
+        }
+
+        var deadline = (int)DateTimeOffset.UtcNow.AddMilliseconds(timeoutMilSec).ToUnixTimeMilliseconds();
+        foreach (var key in keys)
+        {
+            _clientManager.RegisterBlocked(clientState, key, deadline, null);
+        }
+
+        return null;
     }
 
     private RedisCommand HandleLPop(List<string> args)
@@ -94,6 +126,22 @@ public class CommandExecutor
         if (args.Count < 2) return MakeError("ERR wrong number of arguments for 'lpush' command");
         var key = args[0];
         var values = args.Skip(1).ToList();
+
+        while (values.Count > 0)
+        {
+            var client = _clientManager.TryUnblockOneForKey(key);
+            if (client == null) break;
+
+            var item = values[0];
+            values.RemoveAt(0);
+
+            var reply = MakeArray(new List<string> { key, item });
+            client.PendingReplies.Enqueue(reply);
+
+            _clientManager.RemoveBlockedClientFromAllKeys(client);
+        }
+
+
         var count = Database.Instance.ListLeftPush(key, values);
         return MakeInteger(count);
     }
@@ -103,6 +151,21 @@ public class CommandExecutor
         if (args.Count < 2) return MakeError("ERR wrong number of arguments for 'rpush' command");
         var key = args[0];
         var values = args.Skip(1).ToList();
+
+        while (values.Count > 0)
+        {
+            var client = _clientManager.TryUnblockOneForKey(key);
+            if (client == null) break;
+
+            var item = values[0];
+            values.RemoveAt(0);
+
+            var reply = MakeArray(new List<string> { key, item });
+            client.PendingReplies.Enqueue(reply);
+
+            _clientManager.RemoveBlockedClientFromAllKeys(client);
+        }
+        
         var count = Database.Instance.ListRightPush(key, values);
         return MakeInteger(count);
     }

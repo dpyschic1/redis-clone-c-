@@ -9,13 +9,15 @@ public class EventLoop
     private readonly Socket _listener;
     private readonly List<Socket> _clients = new();
     private readonly Dictionary<Socket, ClientState> _clientStates = new();
+    private readonly ClientStateManager _clientManager = ClientStateManager.Instance;
     private bool _running = true;
 
     private readonly RedisProtocolParser _redisParser;
     private readonly CommandExecutor _commandExecutor;
     private readonly RedisSerializer _serializer;
 
-    public EventLoop(int port, RedisProtocolParser redisParser , CommandExecutor commandExecutor, RedisSerializer serializer)
+
+    public EventLoop(int port, RedisProtocolParser redisParser, CommandExecutor commandExecutor, RedisSerializer serializer)
     {
         _redisParser = redisParser;
         _commandExecutor = commandExecutor;
@@ -40,7 +42,7 @@ public class EventLoop
 
             foreach (var kv in _clientStates)
             {
-                if (kv.Value.PendingWrites.Count > 0)
+                if (kv.Value.PendingReplies.Count > 0)
                 {
                     writeList.Add(kv.Key);
                 }
@@ -61,6 +63,9 @@ public class EventLoop
 
             foreach (var client in readList)
             {
+                if (_clientStates.TryGetValue(client, out var state) && state.IsBlocked)
+                    continue;
+
                 HandleRead(client);
             }
 
@@ -68,11 +73,19 @@ public class EventLoop
             {
                 HandleWrite(client);
             }
-            
+
             foreach (var client in errorList)
             {
                 Console.WriteLine("Error on client {0}", client.RemoteEndPoint);
                 CloseClient(client);
+            }
+
+            var expired = _clientManager.ScanAndExpire();
+            foreach (var client in expired)
+            {
+                var nil = new RedisCommand { Type = RedisType.NullBulkString };
+                client.PendingReplies.Enqueue(nil);
+                _clientManager.RemoveBlockedClientFromAllKeys(client);
             }
         }
     }
@@ -101,17 +114,19 @@ public class EventLoop
                 {
                     break;
                 }
+
                 state.InputBuffer.Remove(0, consumed);
 
-                var result = _commandExecutor.Execute(command);
+                var result = _commandExecutor.Execute(command, state);
 
-                var response = _serializer.Serialize(result);
-
-                state.PendingWrites.Enqueue(response);
+                if (result != null)
+                {
+                    state.PendingReplies.Enqueue(result);
+                }
             }
 
         }
-        catch(SocketException ex)
+        catch (SocketException ex)
         {
             Console.WriteLine("Socket exception: {0}", ex.Message);
             CloseClient(client);
@@ -121,15 +136,22 @@ public class EventLoop
             Console.WriteLine("Exception: {0}", ex.Message);
             CloseClient(client);
         }
-   }
+    }
 
     public void HandleWrite(Socket client)
     {
-        var state = _clientStates[client];
-        
-        while(state.PendingWrites.Count > 0)
+        if (!_clientStates.TryGetValue(client, out var state)) return;
+
+        while (state.PendingReplies.Count > 0)
         {
-            var data = state.PendingWrites.Dequeue();
+            var command = state.PendingReplies.Dequeue();
+            var bytes = _serializer.Serialize(command);
+            state.PendingWrites.Enqueue(bytes);
+        }
+
+        while (state.PendingReplies.Count > 0)
+        {
+            var data = state.PendingWrites.Peek();
             try
             {
                 int sent = client.Send(data);
@@ -137,10 +159,12 @@ public class EventLoop
                 {
                     var remaining = new byte[data.Length - sent];
                     Buffer.BlockCopy(data, sent, remaining, 0, remaining.Length);
-
+                    state.PendingWrites.Dequeue();
                     state.PendingWrites.Enqueue(remaining);
                     break;
                 }
+
+                state.PendingWrites.Dequeue();
             }
             catch (SocketException ex)
             {
@@ -151,6 +175,11 @@ public class EventLoop
     }
     private void CloseClient(Socket client)
     {
+        if (_clientStates.TryGetValue(client, out var state))
+        {
+            _clientManager.RemoveBlockedClientFromAllKeys(state);
+        }
+        
         _clients.Remove(client);
         try
         {
@@ -164,8 +193,3 @@ public class EventLoop
     public void Stop() => _running = false;
 }
 
-public class ClientState
-{
-    public StringBuilder InputBuffer { get; set; } = new();
-    public Queue<byte[]> PendingWrites { get; } = new();
-}

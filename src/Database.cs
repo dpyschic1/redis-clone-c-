@@ -4,8 +4,8 @@ namespace Server;
 
 public class Database
 {
-    private static readonly Lazy<Database> _instance = new(new Database());
-    public static Database Instance => _instance.Value;
+    private static readonly Database _instance = new Database();
+    public static Database Instance => _instance;
     private readonly ConcurrentDictionary<string, RedisValue> _dataStore;
 
     private Database()
