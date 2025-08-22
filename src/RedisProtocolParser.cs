@@ -12,6 +12,11 @@ public class RedisProtocolParser
 
     public bool TryParse(string input, out RedisCommand output, out int consumed)
     {
+        consumed = 0;
+        output = null;
+
+        if (string.IsNullOrEmpty(input)) return false;
+
         var inputBytes = Encoding.ASCII.GetBytes(input);
         using var memStream = new RedisMemoryStream(inputBytes);
         output = ParseNode(memStream);

@@ -9,7 +9,7 @@ public class ClientStateManager
 
     private readonly Dictionary<string, Queue<ClientState>> _blockedKeys = new(StringComparer.Ordinal);
 
-    public void RegisterBlocked(ClientState client, string key, int? deadlineInMs, RedisCommand command)
+    public void RegisterBlocked(ClientState client, string key, long deadlineInMs, RedisCommand command)
     {
         if (client == null) throw new ArgumentNullException(nameof(client));
         if (string.IsNullOrEmpty(key)) throw new ArgumentException(nameof(key));
@@ -23,7 +23,7 @@ public class ClientStateManager
         if (!client.BlockedKeys.Contains(key))
             client.BlockedKeys.Add(key);
 
-        client.BlockExpiryInMs = deadlineInMs ?? long.MaxValue;
+        client.BlockExpiryInMs = deadlineInMs == 0 ? long.MaxValue : deadlineInMs;
 
         if (_blockedKeys.TryGetValue(key, out var clientQueue))
         {

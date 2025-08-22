@@ -79,8 +79,8 @@ public class CommandExecutor
                 return MakeArray(new List<string> { key, val[0] });
             }
         }
-
-        var deadline = (int)DateTimeOffset.UtcNow.AddMilliseconds(timeoutMilSec).ToUnixTimeMilliseconds();
+        var now = DateTimeOffset.UtcNow.AddMilliseconds(timeoutMilSec).ToUnixTimeMilliseconds();
+        var deadline = timeoutMilSec == 0 ? long.MaxValue : now;
         foreach (var key in keys)
         {
             _clientManager.RegisterBlocked(clientState, key, deadline, null);
