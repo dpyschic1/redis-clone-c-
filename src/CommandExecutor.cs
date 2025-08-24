@@ -66,8 +66,8 @@ public class CommandExecutor
 
         if (clientState == null) return MakeError("ERR internal: missing client state for blocking command");
 
-        if (!int.TryParse(args.Last(), out var timeoutMilSec))
-            return MakeError("ERR timeout must be integer");
+        if (!double.TryParse(args.Last(), out var timeoutSec))
+            return MakeError("ERR timeout must be a number");
 
         var keys = args.Take(args.Count - 1).ToList();
 
@@ -79,8 +79,8 @@ public class CommandExecutor
                 return MakeArray(new List<string> { key, val[0] });
             }
         }
-        var now = DateTimeOffset.UtcNow.AddMilliseconds(timeoutMilSec).ToUnixTimeMilliseconds();
-        var deadline = timeoutMilSec == 0 ? long.MaxValue : now;
+        var now = DateTimeOffset.UtcNow.AddSeconds(timeoutSec).ToUnixTimeMilliseconds();
+        var deadline = timeoutSec == 0 ? long.MaxValue : now;
         foreach (var key in keys)
         {
             _clientManager.RegisterBlocked(clientState, key, deadline, null);

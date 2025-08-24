@@ -52,7 +52,7 @@ public class ClientStateManager
 
         Console.WriteLine("Unblocking clients for \nkey: {0}", key);
 
-        DrainExpiredFromQueue(nowMs, key, clientQueue);
+        DrainExpiredFromQueue(nowMs, clientQueue);
 
         if (clientQueue.Count == 0)
         {
@@ -78,7 +78,7 @@ public class ClientStateManager
         {
             var key = kv.Key;
             var queue = kv.Value;
-            var expiredFromQueue = DrainExpiredFromQueue(nowMs, key, queue);
+            var expiredFromQueue = DrainExpiredFromQueue(nowMs, queue);
             if (expiredFromQueue?.Count > 0)
                 expired.AddRange(expiredFromQueue);
 
@@ -113,7 +113,7 @@ public class ClientStateManager
         client.BlockExpiryInMs = long.MaxValue;
     }
 
-    private List<ClientState> DrainExpiredFromQueue(long nowMs, string key, Queue<ClientState> queue)
+    private List<ClientState> DrainExpiredFromQueue(long nowMs, Queue<ClientState> queue)
     {
         var expired = new List<ClientState>();
         while (queue.Count > 0)
