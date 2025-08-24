@@ -152,7 +152,7 @@ public class EventLoop
             state.PendingWrites.Enqueue(bytes);
         }
 
-        while (state.PendingReplies.Count > 0)
+        while (state.PendingWrites.Count > 0)
         {
             var data = state.PendingWrites.Peek();
             try

@@ -153,14 +153,26 @@ public class CommandExecutor
         {
             var client = _clientManager.TryUnblockOneForKey(key);
             if (client == null) break;
+            var item = values[0];
+            values.RemoveAt(0);
 
-            var reply = MakeArray(new List<string> { key, values[0] });
+            var reply = MakeArray(new List<string> { key, item });
             client.PendingReplies.Enqueue(reply);
 
             _clientManager.RemoveBlockedClientFromAllKeys(client);
         }
-        
-        var count = Database.Instance.ListRightPush(key, values);
+
+        int count = 0;
+
+        if (values.Count > 0)
+        {
+            count = Database.Instance.ListRightPush(key, values);
+        }
+        else
+        {
+            count = Database.Instance.ListLength(key);
+        }
+            
         return MakeInteger(count);
     }
 
