@@ -126,6 +126,7 @@ public class CommandExecutor
         if (args.Count < 2) return MakeError("ERR wrong number of arguments for 'lpush' command");
         var key = args[0];
         var values = args.Skip(1).ToList();
+        int count = 0;
 
         while (values.Count > 0)
         {
@@ -133,6 +134,7 @@ public class CommandExecutor
             if (client == null) break;
             var item = values[0];
             values.RemoveAt(0);
+            count++;
 
             var reply = MakeArray(new List<string> { key, item });
             client.PendingReplies.Enqueue(reply);
@@ -140,14 +142,13 @@ public class CommandExecutor
             _clientManager.RemoveBlockedClientFromAllKeys(client);
         }
 
-        int count;
         if (values.Count > 0)
         {
-            count = Database.Instance.ListLeftPush(key, values);
+            count += Database.Instance.ListLeftPush(key, values);
         }
         else
         {
-            count = Database.Instance.ListLength(key);
+            count += Database.Instance.ListLength(key);
         }
         
         return MakeInteger(count);
@@ -158,6 +159,7 @@ public class CommandExecutor
         if (args.Count < 2) return MakeError("ERR wrong number of arguments for 'rpush' command");
         var key = args[0];
         var values = args.Skip(1).ToList();
+        int count = 0;
 
         while (values.Count > 0)
         {
@@ -165,6 +167,7 @@ public class CommandExecutor
             if (client == null) break;
             var item = values[0];
             values.RemoveAt(0);
+            count++;
 
             var reply = MakeArray(new List<string> { key, item });
             client.PendingReplies.Enqueue(reply);
@@ -172,14 +175,14 @@ public class CommandExecutor
             _clientManager.RemoveBlockedClientFromAllKeys(client);
         }
 
-        int count;
+
         if (values.Count > 0)
         {
-            count = Database.Instance.ListRightPush(key, values);
+            count += Database.Instance.ListRightPush(key, values);
         }
         else
         {
-            count = Database.Instance.ListLength(key);
+            count += Database.Instance.ListLength(key);
         }
             
         return MakeInteger(count);
