@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 
 namespace Server;
 
@@ -25,6 +26,8 @@ public class ClientStateManager
 
         client.BlockExpiryInMs = deadlineInMs == 0 ? long.MaxValue : deadlineInMs;
 
+        Console.WriteLine("Blocking client with \nkey: {0}\nState: {1} ", key, client.ToString());
+
         if (_blockedKeys.TryGetValue(key, out var clientQueue))
         {
             if (clientQueue.Contains(client))
@@ -47,6 +50,8 @@ public class ClientStateManager
 
         var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
+        Console.WriteLine("Unblocking clients for \nkey: {0}", key);
+
         DrainExpiredFromQueue(nowMs, key, clientQueue);
 
         if (clientQueue.Count == 0)
@@ -58,6 +63,8 @@ public class ClientStateManager
         var client = clientQueue.Dequeue();
         if (clientQueue.Count == 0)
             _blockedKeys.Remove(key);
+
+        Console.WriteLine("Unblocked client with\nkey:{0} \nstate: {1}", key, client.ToString());
 
         return client;
     }
@@ -146,4 +153,9 @@ public class ClientState
     public long BlockExpiryInMs { get; set; } = long.MaxValue;
     public RedisCommand BlockedCommand { get; set; }
     public Queue<byte[]> PendingWrites { get; } = new();
+
+    public override string ToString()
+    {
+        return $"Value for current state: {JsonSerializer.Serialize(this)}";
+    }
 }

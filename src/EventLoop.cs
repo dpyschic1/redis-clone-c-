@@ -23,7 +23,6 @@ public class EventLoop
         _commandExecutor = commandExecutor;
         _serializer = serializer;
 
-        // Initialize the listener socket
         _listener = new Socket(AddressFamily.InterNetwork,
             SocketType.Stream, ProtocolType.Tcp);
 
@@ -63,10 +62,13 @@ public class EventLoop
 
             foreach (var client in readList)
             {
+                Console.WriteLine("Attempting to connect to client {0}", client.ToString());
                 if (_clientStates.TryGetValue(client, out var state) && state.IsBlocked)
                     continue;
 
+                Console.WriteLine("Connected and found client in state {0}", state.ToString());
                 HandleRead(client);
+                Console.WriteLine("After handle read state is: {0}", state.ToString());
             }
 
             foreach (var client in writeList)
@@ -145,6 +147,7 @@ public class EventLoop
         while (state.PendingReplies.Count > 0)
         {
             var command = state.PendingReplies.Dequeue();
+            Console.WriteLine("Serializing reply {0}", state.ToString());
             var bytes = _serializer.Serialize(command);
             state.PendingWrites.Enqueue(bytes);
         }
@@ -163,7 +166,6 @@ public class EventLoop
                     state.PendingWrites.Enqueue(remaining);
                     break;
                 }
-
                 state.PendingWrites.Dequeue();
             }
             catch (SocketException ex)
@@ -179,7 +181,7 @@ public class EventLoop
         {
             _clientManager.RemoveBlockedClientFromAllKeys(state);
         }
-        
+
         _clients.Remove(client);
         try
         {
