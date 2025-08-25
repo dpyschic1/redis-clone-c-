@@ -1,4 +1,6 @@
-﻿namespace Server;
+﻿using System.Collections.Immutable;
+
+namespace Server;
 
 public class RedisStream
 {
@@ -16,6 +18,13 @@ public class RedisStream
         _lastId = newId;
         
         return newId;
+    }
+
+    public ImmutableSortedDictionary<StreamId, StreamEntry> Range(StreamId startId, StreamId endId)
+    {
+        return _entries
+        .Where(k => k.Key.CompareTo(startId) >= 0 && k.Key.CompareTo(endId) < 0).
+        ToImmutableSortedDictionary(g => g.Key, g => g.Value);
     }
 
     private StreamId GenerateId(StreamId? id, bool isSequenceWildCard)

@@ -158,13 +158,58 @@ public class Database
         return newId.ToString();
     }
 
+    public Dictionary<string, Dictionary<string, string>> RangeStream(string key, string startId, string endId)
+    {
+        ArgumentNullException.ThrowIfNullOrEmpty(key);
+        ArgumentNullException.ThrowIfNullOrEmpty(startId);
+        ArgumentNullException.ThrowIfNullOrEmpty(endId);
+
+        if (_dataStore.TryGetValue(key, out var existingValue))
+        {
+            var stream = existingValue.AsStream();
+            var start = new StreamId(0, 0);
+            var end = new StreamId(long.MaxValue, long.MaxValue);
+
+            if (startId != "-")
+            {
+                var startIdParts = startId.Split('-');
+                if (startIdParts.Length == 1)
+                    start = new StreamId(long.Parse(startIdParts[0]), 0);
+                else
+                    start = new StreamId(long.Parse(startIdParts[0]), long.Parse(startIdParts[1]));
+
+            }
+
+            if (endId != "+")
+            {
+                var endIdParts = endId.Split('-');
+                if (endIdParts.Length == 1)
+                    end = new StreamId(long.Parse(endIdParts[0]), long.MaxValue);
+                else
+                    end = new StreamId(long.Parse(endIdParts[0]), long.Parse(endIdParts[1]));
+            }
+
+            var result = stream.Range(start, end);
+            Dictionary<string, Dictionary<string, string>> flattenedResult = new();
+            foreach (var (k, v) in result)
+            {
+                flattenedResult.Add(k.ToString(), v.Fields);
+            }
+
+            return flattenedResult;
+        }
+
+        return null;
+
+    }
+
     private (StreamId? id, bool isSequenceWildcard) ParseStreamId(string id)
     {
-        if(id == "*")
+        if (id == "*")
             return (null, false);
-        
+
         var parts = id.Split('-');
-        if(parts.Length != 2)
+        if (parts.Length != 2)
             throw new RedisStreamException("ERR invalid stream id");
 
         if (!long.TryParse(parts[0], out var ms))
@@ -172,10 +217,10 @@ public class Database
 
         if (parts[1] == "*")
             return new(new StreamId(ms, 0), true);
-        
+
         if (!long.TryParse(parts[1], out var seq))
             throw new RedisStreamException("Err invalid sequence part in ID");
-        
+
         return (new StreamId(ms, seq), false);
     }
 

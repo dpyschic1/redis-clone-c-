@@ -47,6 +47,7 @@ public class CommandExecutor
             case "BLPOP": return HandleBLPop(args, clientState);
             case "TYPE": return HandleType(args);
             case "XADD": return HandleXAdd(args);
+            case "XRANGE": return HandleXRange(args);
             default: return MakeError($"ERR unknown command '{cmdName}'");
         }
     }
@@ -60,6 +61,31 @@ public class CommandExecutor
             return nestedReply.ToString();
         }
         return argNode.ToString();
+    }
+
+    private RedisCommand HandleXRange(List<string> args)
+    {
+        if (args.Count < 3) return MakeError("ERR wrong number of arguments for XRange command");
+
+        var key = args[0];
+        var startId = args[1];
+        var endId = args[2];
+
+        try
+        {
+            var rangedResult = Database.Instance.RangeStream(key, startId, endId);
+            var entries = rangedResult.Select(kvp => new object[]
+            {
+                kvp.Key,
+                kvp.Value
+            });
+
+            return ToRedisCommand(entries);
+        }
+        catch (Exception ex)
+        {
+            return MakeError(ex.Message);
+        }
     }
 
     private RedisCommand HandleXAdd(List<string> args)
@@ -315,6 +341,33 @@ public class CommandExecutor
                 Type = RedisType.BulkString,
                 StringValue = v
             }).ToList()
+        };
+    }
+
+    private RedisCommand ToRedisCommand(object value)
+    {
+        return value switch
+        {
+            null => MakeNullBulkString(),
+            string str => MakeBulkString(str),
+            long lng => MakeInteger(lng),
+            int i => MakeInteger(i),
+            Dictionary<string, string> dict => new RedisCommand
+            {
+                Type = RedisType.Array,
+                Items = dict.SelectMany(kvp => new[] { MakeBulkString(kvp.Key), MakeBulkString(kvp.Value) }).ToList()
+            },
+            IEnumerable<string> strings => new RedisCommand
+            {
+                Type = RedisType.Array,
+                Items = strings.Select(s => MakeBulkString(s)).ToList()
+            },
+            IEnumerable<object> enumerable => new RedisCommand
+            {
+                Type = RedisType.Array,
+                Items = enumerable.Select(ToRedisCommand).ToList()
+            },
+            _ => throw new ArgumentException($"Unsupported type: {value.GetType()}")
         };
     }
 }
