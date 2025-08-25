@@ -141,7 +141,7 @@ public class Database
         RedisStream stream;
         if (_dataStore.TryGetValue(key, out var existingValue))
         {
-            if (existingValue.Type != RedisDataType.List)
+            if (existingValue.Type != RedisDataType.Stream)
                 throw new InvalidOperationException("ERR value is not of type Stream");
             
             stream = existingValue.AsStream();
