@@ -13,6 +13,17 @@ public class Database
         _dataStore = new ConcurrentDictionary<string, RedisValue>();
     }
 
+    public string GetDataTypeString(string key)
+    {
+        var type = GetDataType(key);
+        return type switch
+        {
+            RedisDataType.String => "string",
+            RedisDataType.None => "none",
+            _ => "none"
+        };
+    }
+
     public bool Set(string key, string value, TimeSpan? expiry = null)
     {
         if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
@@ -63,7 +74,7 @@ public class Database
         _dataStore[key] = new RedisValue(RedisDataType.List, values);
         return values.Count;
     }
-    
+
     public int ListLeftPush(string key, List<string> values)
     {
         if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
@@ -123,6 +134,18 @@ public class Database
 
         return new List<string>();
     }
+    
+    private RedisDataType GetDataType(string key)
+    {
+        if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
+
+        if (_dataStore.TryGetValue(key, out var value))
+        {
+            return value.Type;
+        }
+
+        return RedisDataType.None;
+    }
 }
 
 public class RedisValue
@@ -155,5 +178,6 @@ public class RedisValue
 public enum RedisDataType
 {
     String,
-    List
+    List,
+    None
 }

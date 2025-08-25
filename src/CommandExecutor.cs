@@ -42,9 +42,10 @@ public class CommandExecutor
             case "LLEN": return HandleLlen(args);
             case "RPUSH": return HandleRPush(args);
             case "LPUSH": return HandleLPush(args);
-            case "LPOP" : return HandleLPop(args);
+            case "LPOP": return HandleLPop(args);
             case "LRANGE": return HandleLRange(args);
             case "BLPOP": return HandleBLPop(args, clientState);
+            case "TYPE": return HandleType(args);
             default: return MakeError($"ERR unknown command '{cmdName}'");
         }
     }
@@ -58,6 +59,18 @@ public class CommandExecutor
             return nestedReply.ToString();
         }
         return argNode.ToString();
+    }
+
+    private RedisCommand HandleType(List<string> args)
+    {
+        if (args.Count != 1) return MakeError("Error wrong number of arguments for Type command");
+
+        var key = args[0];
+
+        var value = Database.Instance.GetDataTypeString(key);
+
+        return MakeSimpleString(value);
+
     }
 
     private RedisCommand HandleBLPop(List<string> args, ClientState clientState)
@@ -150,7 +163,7 @@ public class CommandExecutor
         {
             count += Database.Instance.ListLength(key);
         }
-        
+
         return MakeInteger(count);
     }
 
@@ -184,7 +197,7 @@ public class CommandExecutor
         {
             count += Database.Instance.ListLength(key);
         }
-            
+
         return MakeInteger(count);
     }
 
