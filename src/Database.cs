@@ -134,6 +134,9 @@ public class Database
     {
         if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(key), nameof(id));
 
+        if (id == "0-0")
+            throw new RedisStreamException("ERR The ID specified in XADD must be greater than 0-0");
+
         if (id == "*")
         {
             if (_dataStore.TryGetValue(key, out var existingValue))
@@ -155,9 +158,6 @@ public class Database
         var idSequenceNumber = idParts[1] == "*" ? 0 : int.Parse(idParts[1]);
 
         var streamId = new StreamId(idMilliSeconds, idSequenceNumber);
-
-        if (idMilliSeconds == 0 && idSequenceNumber == 0)
-            throw new RedisStreamException("ERR The ID specified in XADD must be greater than 0-0");
 
         if (_dataStore.TryGetValue(key, out var value))
         {
