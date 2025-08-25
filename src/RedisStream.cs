@@ -23,7 +23,7 @@ public class RedisStream
     public ImmutableSortedDictionary<StreamId, StreamEntry> Range(StreamId startId, StreamId endId)
     {
         return _entries
-        .Where(k => k.Key.CompareTo(startId) >= 0 && k.Key.CompareTo(endId) < 0).
+        .Where(k => k.Key.CompareTo(startId) >= 0 && k.Key.CompareTo(endId) <= 0).
         ToImmutableSortedDictionary(g => g.Key, g => g.Value);
     }
 
