@@ -145,18 +145,16 @@ public class Database
         {
             if (value.Type != RedisDataType.Stream) throw new ArgumentException("ERR value is not of type Stream");
 
-
-
             foreach (var keyInStream in value.StreamValues.Keys)
             {
                 var keyInStreamParts = keyInStream.Split('-');
                 var keyInStreamMs = int.Parse(keyInStreamParts[0]);
                 var keyInStreamSequence = int.Parse(keyInStreamParts[1]);
 
-                if (idMilliSeconds < keyInStreamMs)
+                if (idMilliSeconds <= keyInStreamMs)
                     throw new RedisStreamException("ERR The ID specified in XADD is equal or smaller than the target stream top item");
 
-                if (keyInStreamMs == idMilliSeconds && keyInStreamSequence > idSequenceNumber)
+                if (keyInStreamMs == idMilliSeconds && keyInStreamSequence >= idSequenceNumber)
                     throw new RedisStreamException("ERR The ID specified in XADD is equal or smaller than the target stream top item");
             }
 
