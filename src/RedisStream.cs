@@ -39,7 +39,7 @@ public class RedisStream
 
     private StreamId GenerateSequenceWildcardId(long ms)
     {
-        return ms < _lastId.ms 
+        return ms <= _lastId.ms 
             ? new StreamId(_lastId.ms, _lastId.seq + 1) 
             : new StreamId(ms, 0);
     }
