@@ -37,7 +37,7 @@ public class Database
                 _dataStore.TryRemove(key, out _);
                 return null;
             }
-            return value.StringValue;
+            return value.AsString();
         }
 
         return null;
@@ -49,7 +49,7 @@ public class Database
 
         if (_dataStore.TryGetValue(key, out var value) && value.Type == RedisDataType.List)
         {
-            return value.ListValue.Count;
+            return value.AsList().Count;
         }
 
         return 0;
@@ -62,8 +62,9 @@ public class Database
 
         if (_dataStore.TryGetValue(key, out var existingValue) && existingValue.Type == RedisDataType.List)
         {
-            existingValue.ListValue.AddRange(values);
-            return existingValue.ListValue.Count;
+            var valueList = existingValue.AsList();
+            valueList.AddRange(values);
+            return valueList.Count;
         }
 
         _dataStore[key] = new RedisValue(RedisDataType.List, values);
@@ -80,8 +81,9 @@ public class Database
 
         if (_dataStore.TryGetValue(key, out var existingValue) && existingValue.Type == RedisDataType.List)
         {
-            existingValue.ListValue.InsertRange(0, values);
-            return existingValue.ListValue.Count;
+            var listValues =  existingValue.AsList();
+            listValues.InsertRange(0, values);
+            return listValues.Count;
         }
 
         _dataStore[key] = new RedisValue(RedisDataType.List, values);
@@ -91,10 +93,11 @@ public class Database
     public List<string> ListPop(string key, int num)
     {
         if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
-        if (_dataStore.TryGetValue(key, out var value) && value.Type == RedisDataType.List && value.ListValue.Count > 0)
+        if (_dataStore.TryGetValue(key, out var value) && value.Type == RedisDataType.List && value.AsList().Count > 0)
         {
-            var elements = value.ListValue[0..num];
-            value.ListValue.RemoveRange(0, num);
+            var listValues = value.AsList();
+            var elements = listValues[0..num];
+            listValues.RemoveRange(0, num);
             return elements;
         }
 
@@ -107,21 +110,22 @@ public class Database
 
         if (_dataStore.TryGetValue(key, out var value) && value.Type == RedisDataType.List)
         {
+            var listValues = value.AsList();
             if (endIndex < 0)
             {
-                endIndex += value.ListValue.Count;
-                endIndex = endIndex > value.ListValue.Count - 1 ? value.ListValue.Count - 1 : endIndex;
+                endIndex += listValues.Count;
+                endIndex = endIndex > listValues.Count - 1 ? listValues.Count - 1 : endIndex;
             }
 
             if (startIndex < 0)
             {
-                startIndex += value.ListValue.Count;
+                startIndex += listValues.Count;
                 startIndex = startIndex < 0 ? 0 : startIndex;
             }
 
             if (startIndex > endIndex) return new List<string>();
 
-            return value.ListValue
+            return listValues
                 .Skip(startIndex)
                 .Take(endIndex - startIndex + 1)
                 .ToList();
@@ -134,52 +138,45 @@ public class Database
     {
         if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(key), nameof(id));
 
-        if (id == "0-0")
-            throw new RedisStreamException("ERR The ID specified in XADD must be greater than 0-0");
-
-        if (id == "*")
+        RedisStream stream;
+        if (_dataStore.TryGetValue(key, out var existingValue))
         {
-            if (_dataStore.TryGetValue(key, out var existingValue))
-            {
-                var newId = existingValue.StreamValues.Add(keyValuePairs);
-                return newId.ToString();
-            }
-            else
-            {
-                var newStream = new RedisStream();
-                var newId = newStream.Add(keyValuePairs);
-                _dataStore[key] = new RedisValue(RedisDataType.Stream, newStream);
-                return newId.ToString();
-            }
-        }
-
-        var idParts = id.Split('-');
-        var idMilliSeconds = int.Parse(idParts[0]);
-        var idSequenceNumber = idParts[1] == "*" ? 0 : int.Parse(idParts[1]);
-
-        var streamId = new StreamId(idMilliSeconds, idSequenceNumber);
-
-        if (_dataStore.TryGetValue(key, out var value))
-        {
-            if (value.Type != RedisDataType.Stream) throw new ArgumentException("ERR value is not of type Stream");
-
-            try
-            {
-                var addedId = value.StreamValues.Add(keyValuePairs, streamId);
-                return addedId.ToString();
-            }
-            catch (InvalidOperationException)
-            {
-                throw new RedisStreamException("ERR The ID specified in XADD is equal or smaller than the target stream top item");
-            }
+            if (existingValue.Type != RedisDataType.List)
+                throw new InvalidOperationException("ERR value is not of type Stream");
+            
+            stream = existingValue.AsStream();
         }
         else
         {
-            var newStream = new RedisStream();
-            var addedId = newStream.Add(keyValuePairs, streamId);
-            _dataStore[key] = new RedisValue(RedisDataType.Stream, newStream);
-            return addedId.ToString();   
+            stream = new RedisStream();
+            _dataStore[key] = RedisValue.FromStream(stream);
         }
+
+        StreamId newId;
+
+        if (id == "*")
+        {
+            newId = stream.Add(keyValuePairs);
+        }
+        else
+        {
+            var parts = id.Split('-');
+            if(parts.Length != 2)
+                throw new RedisStreamException("ERR invalid stream id");
+
+            if (!long.TryParse(parts[0], out var ms))
+                throw new RedisStreamException("ERR invalid millisecond part in ID");
+
+            long seq;
+            if (parts[1] == "*") seq = 0;
+            else if (!long.TryParse(parts[1], out seq))
+                throw new RedisStreamException("Err invalid sequence part in ID");
+
+            var streamId = new StreamId(ms, seq);
+            newId = stream.Add(keyValuePairs, streamId, autoId: false);
+        }
+
+        return newId.ToString();
     }
 
     private RedisDataType GetDataType(string key)
@@ -198,32 +195,23 @@ public class Database
 public class RedisValue
 {
     public RedisDataType Type { get; }
-    public string StringValue { get; }
-    public List<string> ListValue { get; }
-    public RedisStream StreamValues { get; }
+    public object Value { get; }
     public long ExpiryTime { get; }
     public bool IsExpired => ExpiryTime < DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
     public RedisValue(RedisDataType type, object value, TimeSpan? expiry = null)
     {
         Type = type;
-        switch (type)
-        {
-            case RedisDataType.String:
-                StringValue = value as string;
-                ExpiryTime = expiry.HasValue ? DateTimeOffset.UtcNow.Add(expiry.Value).ToUnixTimeMilliseconds() : long.MaxValue;
-                break;
-            case RedisDataType.List:
-                ListValue = value as List<string>;
-                ExpiryTime = expiry.HasValue ? DateTimeOffset.UtcNow.Add(expiry.Value).ToUnixTimeMilliseconds() : long.MaxValue;
-                break;
-            case RedisDataType.Stream:
-                StreamValues = value as RedisStream;
-                break;
-            default:
-                throw new ArgumentException("Invalid Redis data type");
-        }
+        Value = value;
     }
+
+    public static RedisValue FromString(string s) => new(RedisDataType.String, s);
+    public static RedisValue FromList(List<string> l) => new(RedisDataType.List, l);
+    public static RedisValue FromStream(RedisStream stream) => new(RedisDataType.Stream, stream);
+    public string AsString() => (string)Value;
+    public long AsInt() =>  (long)Value;
+    public List<string> AsList() => (List<string>)Value;
+    public RedisStream AsStream() => (RedisStream)Value;
 }
 
 public class RedisStream
@@ -231,18 +219,32 @@ public class RedisStream
     private readonly SortedDictionary<StreamId, StreamEntry> _entries = new();
     private StreamId _lastId = new(0, 0);
 
-    public StreamId Add(Dictionary<string, string> fields, StreamId? streamId = null)
+    public StreamId Add(Dictionary<string, string> fields, StreamId? id = null, bool autoId = true)
     {
-        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var newId = streamId ?? new StreamId(now, 0);
+        if(fields == null || fields.Count == 0)
+            throw new ArgumentNullException(nameof(fields));
 
-        if (newId.CompareTo(_lastId) <= 0)
+        StreamId newId;
+
+        if (autoId || id == null)
         {
-            newId = new StreamId(_lastId.ms, _lastId.seq + 1);
+            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            if (now > _lastId.ms)
+                newId = new StreamId(now, 0);
+            else
+                newId = new StreamId(_lastId.ms, _lastId.seq + 1);
         }
-
+        else
+        {
+            if (id.CompareTo(_lastId) <= 0)
+                throw new InvalidOperationException(
+                    "ERR The ID specified in XADD is equal or smaller than the target stream top item");
+            newId = id;
+        }
+        
         _entries[newId] = new StreamEntry(newId, fields);
         _lastId = newId;
+        
         return newId;
     }
 }

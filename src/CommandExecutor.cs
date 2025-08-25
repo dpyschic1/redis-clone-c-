@@ -78,7 +78,7 @@ public class CommandExecutor
             var addedId = Database.Instance.AddStream(key, id, kvPair);
             return MakeBulkString(addedId);
         }
-        catch (RedisStreamException ex)
+        catch (Exception ex) when (ex is RedisStreamException || ex is InvalidOperationException)
         {
             return MakeError(ex.Message);
         }
