@@ -152,31 +152,31 @@ public class Database
             _dataStore[key] = RedisValue.FromStream(stream);
         }
 
-        StreamId newId;
-
-        if (id == "*")
-        {
-            newId = stream.Add(keyValuePairs);
-        }
-        else
-        {
-            var parts = id.Split('-');
-            if(parts.Length != 2)
-                throw new RedisStreamException("ERR invalid stream id");
-
-            if (!long.TryParse(parts[0], out var ms))
-                throw new RedisStreamException("ERR invalid millisecond part in ID");
-
-            long seq;
-            if (parts[1] == "*") seq = 0;
-            else if (!long.TryParse(parts[1], out seq))
-                throw new RedisStreamException("Err invalid sequence part in ID");
-
-            var streamId = new StreamId(ms, seq);
-            newId = stream.Add(keyValuePairs, streamId, autoId: false);
-        }
+        var (parseid, isSequenceWildcard) = ParseStreamId(id);
+        var newId = stream.Add(keyValuePairs,  parseid, isSequenceWildcard);
 
         return newId.ToString();
+    }
+
+    private (StreamId? id, bool isSequenceWildcard) ParseStreamId(string id)
+    {
+        if(id == "*")
+            return (null, false);
+        
+        var parts = id.Split('-');
+        if(parts.Length != 2)
+            throw new RedisStreamException("ERR invalid stream id");
+
+        if (!long.TryParse(parts[0], out var ms))
+            throw new RedisStreamException("ERR invalid millisecond part in ID");
+
+        if (parts[1] == "*")
+            return new(new StreamId(ms, 0), true);
+        
+        if (!long.TryParse(parts[1], out var seq))
+            throw new RedisStreamException("Err invalid sequence part in ID");
+        
+        return (new StreamId(ms, seq), true);
     }
 
     private RedisDataType GetDataType(string key)
@@ -212,80 +212,6 @@ public class RedisValue
     public long AsInt() =>  (long)Value;
     public List<string> AsList() => (List<string>)Value;
     public RedisStream AsStream() => (RedisStream)Value;
-}
-
-public class RedisStream
-{
-    private readonly SortedDictionary<StreamId, StreamEntry> _entries = new();
-    private StreamId _lastId = new(0, 0);
-
-    public StreamId Add(Dictionary<string, string> fields, StreamId? id = null, bool autoId = true)
-    {
-        if(fields == null || fields.Count == 0)
-            throw new ArgumentNullException(nameof(fields));
-
-        StreamId newId;
-
-        if (autoId || id == null)
-        {
-            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            if (now > _lastId.ms)
-                newId = new StreamId(now, 0);
-            else
-                newId = new StreamId(_lastId.ms, _lastId.seq + 1);
-        }
-        else
-        {
-            if (id.CompareTo(_lastId) <= 0)
-            {
-                if (id.ms == 0 && id.seq == 0)
-                {
-                    newId = new StreamId(0, _lastId.seq + 1);
-                }
-                else
-                {
-                    throw new InvalidOperationException(
-                        "ERR The ID specified in XADD is equal or smaller than the target stream top item");
-                }
-            }
-            else
-            {
-                newId = id;
-            }
-        }
-        
-        _entries[newId] = new StreamEntry(newId, fields);
-        _lastId = newId;
-        
-        return newId;
-    }
-}
-
-public class StreamEntry
-{
-    public StreamId Id { get; }
-    public Dictionary<string, string> Fields { get; }
-
-    public StreamEntry(StreamId id, Dictionary<string, string> fields)
-    {
-        Id = id;
-        Fields = fields;
-    }
-}
-
-public record StreamId(long ms, long seq) : IComparable<StreamId>
-{
-    public int CompareTo(StreamId? other)
-    {
-        if (other == null) return 1;
-        int cmp = ms.CompareTo(other.ms);
-        return cmp != 0 ? cmp : seq.CompareTo(other.seq);
-    }
-
-    public override string ToString()
-    {
-        return $"{ms}-{seq}";
-    }
 }
 
 public enum RedisDataType
