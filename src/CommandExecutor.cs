@@ -73,9 +73,15 @@ public class CommandExecutor
             kvPair.Add(args[i], args[i + 1]);
         }
 
-        var addedId = Database.Instance.AddStream(key, id, kvPair);
-
-        return MakeBulkString(addedId);
+        try
+        {
+            var addedId = Database.Instance.AddStream(key, id, kvPair);
+            return MakeBulkString(addedId);
+        }
+        catch (RedisStreamException ex)
+        {
+            return MakeError(ex.Message);
+        }
     }
 
     private RedisCommand HandleType(List<string> args)
