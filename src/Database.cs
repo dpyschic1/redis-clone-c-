@@ -237,9 +237,21 @@ public class RedisStream
         else
         {
             if (id.CompareTo(_lastId) <= 0)
-                throw new InvalidOperationException(
-                    "ERR The ID specified in XADD is equal or smaller than the target stream top item");
-            newId = id;
+            {
+                if (id.ms == 0 && id.seq == 0)
+                {
+                    newId = new StreamId(0, _lastId.seq + 1);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        "ERR The ID specified in XADD is equal or smaller than the target stream top item");
+                }
+            }
+            else
+            {
+                newId = id;
+            }
         }
         
         _entries[newId] = new StreamEntry(newId, fields);
