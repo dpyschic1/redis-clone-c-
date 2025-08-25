@@ -151,7 +151,7 @@ public class Database
                 var keyInStreamMs = int.Parse(keyInStreamParts[0]);
                 var keyInStreamSequence = int.Parse(keyInStreamParts[1]);
 
-                if (idMilliSeconds <= keyInStreamMs)
+                if (idMilliSeconds < keyInStreamMs)
                     throw new RedisStreamException("ERR The ID specified in XADD is equal or smaller than the target stream top item");
 
                 if (keyInStreamMs == idMilliSeconds && keyInStreamSequence >= idSequenceNumber)
