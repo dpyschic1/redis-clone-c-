@@ -46,6 +46,7 @@ public class CommandExecutor
             case "LRANGE": return HandleLRange(args);
             case "BLPOP": return HandleBLPop(args, clientState);
             case "TYPE": return HandleType(args);
+            case "XADD": return HandleXAdd(args);
             default: return MakeError($"ERR unknown command '{cmdName}'");
         }
     }
@@ -59,6 +60,22 @@ public class CommandExecutor
             return nestedReply.ToString();
         }
         return argNode.ToString();
+    }
+
+    private RedisCommand HandleXAdd(List<string> args)
+    {
+        if (args.Count < 3) return MakeError("ERR wrong number of arguments for XAdd command");
+        var key = args[0];
+        var id = args[1];
+        Dictionary<string, string> kvPair = new();
+        for (int i = 2; i < args.Count; i += 2)
+        {
+            kvPair.Add(args[i], args[i + 1]);
+        }
+
+        var addedId = Database.Instance.AddStream(key, id, kvPair);
+
+        return MakeBulkString(addedId);
     }
 
     private RedisCommand HandleType(List<string> args)

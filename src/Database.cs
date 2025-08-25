@@ -134,6 +134,28 @@ public class Database
 
         return new List<string>();
     }
+
+    public string AddStream(string key, string id, Dictionary<string, string> keyValuePairs)
+    {
+        if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(id)) throw new ArgumentNullException(nameof(key), nameof(id));
+
+        if (_dataStore.TryGetValue(key, out var value))
+        {
+            value.StreamValues.Add(id, keyValuePairs);
+            return id;
+        }
+
+        var stream = new Dictionary<string, Dictionary<string, string>>()
+        {
+            {
+                id, new(keyValuePairs)
+            }
+        };
+
+        _dataStore[key] = new RedisValue(RedisDataType.Stream, stream);
+
+        return id;
+    }
     
     private RedisDataType GetDataType(string key)
     {
@@ -153,6 +175,7 @@ public class RedisValue
     public RedisDataType Type { get; }
     public string StringValue { get; }
     public List<string> ListValue { get; }
+    public Dictionary<string ,Dictionary<string, string>> StreamValues {get; }
     public long ExpiryTime { get; }
     public bool IsExpired => ExpiryTime < DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
@@ -169,6 +192,9 @@ public class RedisValue
                 ListValue = value as List<string>;
                 ExpiryTime = expiry.HasValue ? DateTimeOffset.UtcNow.Add(expiry.Value).ToUnixTimeMilliseconds() : long.MaxValue;
                 break;
+            case RedisDataType.Stream:
+                StreamValues = value as Dictionary<string ,Dictionary<string, string>>;
+                break; 
             default:
                 throw new ArgumentException("Invalid Redis data type");
         }
@@ -179,5 +205,6 @@ public enum RedisDataType
 {
     String,
     List,
+    Stream,
     None
 }
