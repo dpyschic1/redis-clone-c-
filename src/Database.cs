@@ -176,7 +176,7 @@ public class Database
         if (!long.TryParse(parts[1], out var seq))
             throw new RedisStreamException("Err invalid sequence part in ID");
         
-        return (new StreamId(ms, seq), true);
+        return (new StreamId(ms, seq), false);
     }
 
     private RedisDataType GetDataType(string key)
