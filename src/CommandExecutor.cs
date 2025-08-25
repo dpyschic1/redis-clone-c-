@@ -48,6 +48,7 @@ public class CommandExecutor
             case "TYPE": return HandleType(args);
             case "XADD": return HandleXAdd(args);
             case "XRANGE": return HandleXRange(args);
+            case "XREAD": return HandleXRead(args);
             default: return MakeError($"ERR unknown command '{cmdName}'");
         }
     }
@@ -61,6 +62,59 @@ public class CommandExecutor
             return nestedReply.ToString();
         }
         return argNode.ToString();
+    }
+
+    private RedisCommand HandleXRead(List<string> args)
+    {
+        if (args.Count < 2) return MakeError("ERR wrong number of arguments for XRange command");
+
+        int i = 0;
+        int count = 0;
+        int blockMs = 0;
+        var streamAndIds = new Dictionary<string, string>();
+        if (i < args.Count && args[i].ToUpper() == "COUNT")
+        {
+            i++;
+            if (i < args.Count && int.TryParse(args[i], out int countVal))
+            {
+                count = countVal;
+                i++;
+            }
+        }
+
+        if (i < args.Count && args[i].ToUpper() == "BLOCK")
+        {
+            i++;
+            if (i < args.Count && int.TryParse(args[i], out int blockMsVal))
+            {
+                blockMs = blockMsVal;
+                i++;
+            }
+        }
+
+        int streamIndex = -1;
+
+        for (int j = i; j < args.Count; j++)
+        {
+            if (args[j].ToUpper() == "STREAMS")
+            {
+                streamIndex = j;
+                break;
+            }
+        }
+
+        int remainingArgs = args.Count - streamIndex - 1;
+        int streamCount = remainingArgs / 2;
+
+        for (int k = 0; k < streamCount; k++)
+        {
+            var key = args[streamIndex + 1 + k];
+            var id = args[streamIndex + 1 + streamCount + k];
+            streamAndIds.Add(key, id);
+        }
+
+        var result = Database.Instance.RangeStreamMultiple(streamAndIds);
+        return ToRedisCommand(result);
     }
 
     private RedisCommand HandleXRange(List<string> args)

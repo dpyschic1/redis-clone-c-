@@ -203,6 +203,18 @@ public class Database
 
     }
 
+    public Dictionary<string, Dictionary<string, Dictionary<string, string>>> RangeStreamMultiple(Dictionary<string, string> streamAndIds)
+    {
+        var flattenedResult = new Dictionary<string, Dictionary<string, Dictionary<string, string>>>();
+
+        foreach (var (key, startId) in streamAndIds)
+        {
+            flattenedResult.Add(key, RangeStream(key, startId, "+"));
+        }
+
+        return flattenedResult;
+    }
+
     private (StreamId? id, bool isSequenceWildcard) ParseStreamId(string id)
     {
         if (id == "*")
