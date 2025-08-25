@@ -16,12 +16,7 @@ public class Database
     public string GetDataTypeString(string key)
     {
         var type = GetDataType(key);
-        return type switch
-        {
-            RedisDataType.String => "string",
-            RedisDataType.None => "none",
-            _ => "none"
-        };
+        return type.ToString().ToLower();
     }
 
     public bool Set(string key, string value, TimeSpan? expiry = null)
