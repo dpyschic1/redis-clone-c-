@@ -203,6 +203,9 @@ public class RedisValue
     {
         Type = type;
         Value = value;
+        ExpiryTime =  expiry.HasValue 
+            ? DateTimeOffset.UtcNow.Add(expiry.Value).ToUnixTimeMilliseconds() 
+            : long.MaxValue;
     }
 
     public static RedisValue FromString(string s) => new(RedisDataType.String, s);
