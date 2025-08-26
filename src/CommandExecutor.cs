@@ -124,9 +124,9 @@ public class CommandExecutor
         var now = DateTimeOffset.UtcNow.AddMilliseconds(blockMs).ToUnixTimeMilliseconds();
         var deadline = blockMs == 0 ? long.MaxValue : now;
 
-        foreach (var key in streamAndIds.Keys)
+        foreach (var (key, id) in streamAndIds)
         {
-            _clientManager.RegisterBlocked(clientState, key, deadline, null);
+            _clientManager.RegisterBlocked(clientState, string.Concat(key,id), deadline, null);
         }
 
         return null;
@@ -165,7 +165,7 @@ public class CommandExecutor
         try
         {
             var addedId = Database.Instance.AddStream(key, id, kvPair);
-            var client = _clientManager.TryUnblockOneForKey(key);
+            var client = _clientManager.TryUnblockOneForKey(string.Concat(key,id));
             if (client != null)
             {
                 var reply = StreamResponse.XReadSingle(key, addedId, kvPair);
