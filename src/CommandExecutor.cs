@@ -114,7 +114,7 @@ public class CommandExecutor
         }
 
         var result = Database.Instance.RangeStreamMultiple(streamAndIds);
-        return ToRedisCommand(result);
+        return StreamResponse.XRead(result);
     }
 
     private RedisCommand HandleXRange(List<string> args)
@@ -128,17 +128,11 @@ public class CommandExecutor
         try
         {
             var rangedResult = Database.Instance.RangeStream(key, startId, endId);
-            var entries = rangedResult.Select(kvp => new object[]
-            {
-                kvp.Key,
-                kvp.Value
-            });
-
-            return ToRedisCommand(entries);
+            return StreamResponse.XRange(rangedResult ?? []);
         }
         catch (Exception ex)
         {
-            return MakeError(ex.Message);
+            return RedisResponse.Error(ex.Message);
         }
     }
 
