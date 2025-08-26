@@ -6,7 +6,9 @@ public class RedisStream
 {
     private readonly SortedDictionary<StreamId, StreamEntry> _entries = new();
     private StreamId _lastId = new(0, 0);
-
+    
+    public StreamId GetLastId() => _lastId;
+    
     public StreamId Add(Dictionary<string, string> fields, StreamId? id = null, bool isSequenceWildCard = false)
     {
         if(fields == null || fields.Count == 0)
@@ -25,6 +27,12 @@ public class RedisStream
         return _entries
         .Where(k => k.Key.CompareTo(startId) >= 0 && k.Key.CompareTo(endId) <= 0).
         ToImmutableSortedDictionary(g => g.Key, g => g.Value);
+    }
+
+    public ImmutableSortedDictionary<StreamId, StreamEntry> RangeAfter(StreamId startId, int count)
+    {
+        return _entries.Where(k => k.Key.CompareTo(startId) >= 0).Take(count)
+            .ToImmutableSortedDictionary(g => g.Key, g => g.Value);
     }
 
     private StreamId GenerateId(StreamId? id, bool isSequenceWildCard)

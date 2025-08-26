@@ -203,16 +203,40 @@ public class Database
 
     }
 
-    public Dictionary<string, Dictionary<string, Dictionary<string, string>>> RangeStreamMultiple(Dictionary<string, string> streamAndIds)
+    public Dictionary<string, Dictionary<string, Dictionary<string, string>>> RangeStreamMultiple(Dictionary<string, string> streamAndIds, int count = -1)
     {
-        var flattenedResult = new Dictionary<string, Dictionary<string, Dictionary<string, string>>>();
+        var result = new Dictionary<string, Dictionary<string, Dictionary<string, string>>>();
 
         foreach (var (key, startId) in streamAndIds)
         {
-            flattenedResult.Add(key, RangeStream(key, startId, "+"));
+            if(string.IsNullOrEmpty(key) || string.IsNullOrEmpty(startId))  continue;
+            if (!_dataStore.TryGetValue(key, out var existingValue) && existingValue.Type == RedisDataType.Stream);
+            
+            var stream =  existingValue.AsStream();
+            StreamId searchAfterId;
+            if (startId == "$")
+            {
+                searchAfterId = stream.GetLastId();
+            }
+            else
+            {
+                var parts = startId.Split('-');
+                var ms = long.Parse(parts[0]);
+                var seq = parts.Length > 1 ? long.Parse(parts[1]) : 0;
+                searchAfterId = new StreamId(ms, seq);
+            }
+
+            var entries = stream.RangeAfter(searchAfterId, count);
+            var resultDict = new Dictionary<string, Dictionary<string, string>>();
+            foreach (var (streamId, entry) in entries)
+            {
+                resultDict.Add(streamId.ToString(), entry.Fields);
+            }
+            
+            result.Add(key, resultDict);
         }
 
-        return flattenedResult;
+        return result;
     }
 
     private (StreamId? id, bool isSequenceWildcard) ParseStreamId(string id)

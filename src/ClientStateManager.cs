@@ -8,140 +8,153 @@ public class ClientStateManager
     private static readonly ClientStateManager _instance = new ClientStateManager();
     public static ClientStateManager Instance => _instance;
 
-    private readonly Dictionary<string, Queue<ClientState>> _blockedKeys = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<BlockedClient>> _blockedClients = new();
 
-    public void RegisterBlocked(ClientState client, string key, long deadlineInMs, RedisCommand command)
+    public void BlockClient(ClientState state, string[] keys, string commandType, long timeoutMs,
+        Dictionary<string, object> parameters = null)
     {
-        if (client == null) throw new ArgumentNullException(nameof(client));
-        if (string.IsNullOrEmpty(key)) throw new ArgumentException(nameof(key));
+        state.IsBlocked = true;
+        var expiryMs = timeoutMs == 0
+            ? long.MaxValue
+            : DateTimeOffset.UtcNow.AddMilliseconds(timeoutMs).ToUnixTimeMilliseconds();
 
-        client.BlockedCommand = command;
-        client.IsBlocked = true;
-
-        if (client.BlockedKeys == null)
-            client.BlockedKeys = new();
-
-        if (!client.BlockedKeys.Contains(key))
-            client.BlockedKeys.Add(key);
-
-        client.BlockExpiryInMs = deadlineInMs == 0 ? long.MaxValue : deadlineInMs;
-
-        Console.WriteLine("Blocking client with \nkey: {0}\nState: {1} ", key, client.ToString());
-
-        if (_blockedKeys.TryGetValue(key, out var clientQueue))
+        var blockedClient = new BlockedClient()
         {
-            if (clientQueue.Contains(client))
-                return;
+            Client = state,
+            CommandType = commandType,
+            BlockExpiryInMs = expiryMs,
+            Parameters = parameters ?? []
+        };
 
-            clientQueue.Enqueue(client);
-        }
-        else
+        foreach (var key in keys)
         {
-            var queue = new Queue<ClientState>();
-            queue.Enqueue(client);
-            _blockedKeys.Add(key, queue);
+            if (!_blockedClients.ContainsKey(key))
+                _blockedClients.Add(key, []);
+
+            _blockedClients[key].Add(blockedClient);
         }
     }
 
-    public ClientState TryUnblockOneForKey(string key)
+    public void NotifyKeyChanged(string key, string changeType = null)
     {
-        if (string.IsNullOrEmpty(key)) return null;
-        if (!_blockedKeys.TryGetValue(key, out var clientQueue) || clientQueue.Count == 0) return null;
+        if (!_blockedClients.ContainsKey(key))
+            return;
 
-        var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var clients = _blockedClients[key];
+        var clientsToRemove = new List<BlockedClient>();
 
-        Console.WriteLine("Unblocking clients for \nkey: {0}", key);
-
-        DrainExpiredFromQueue(nowMs, clientQueue);
-
-        if (clientQueue.Count == 0)
+        foreach (var client in clients)
         {
-            _blockedKeys.Remove(key);
-            return null;
-        }
-
-        var client = clientQueue.Dequeue();
-        if (clientQueue.Count == 0)
-            _blockedKeys.Remove(key);
-
-        Console.WriteLine("Unblocked client with\nkey:{0} \nstate: {1}", key, client.ToString());
-
-        return client;
-    }
-
-    public List<ClientState> ScanAndExpire()
-    {
-        var expired = new List<ClientState>();
-        var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-        foreach (var kv in _blockedKeys)
-        {
-            var key = kv.Key;
-            var queue = kv.Value;
-            var expiredFromQueue = DrainExpiredFromQueue(nowMs, queue);
-            if (expiredFromQueue?.Count > 0)
-                expired.AddRange(expiredFromQueue);
-
-            if (queue.Count == 0)
-                _blockedKeys.Remove(key);
-        }
-
-        return expired;
-    }
-
-    public void RemoveBlockedClientFromAllKeys(ClientState client)
-    {
-        if (client == null) return;
-
-        foreach (var kv in _blockedKeys)
-        {
-            var key = kv.Key;
-            var queue = kv.Value;
-
-            if (queue?.Count == 0) continue;
-
-            var filtered = queue.Where(c => !ReferenceEquals(c, client)).ToList();
-            if (filtered.Count == 0)
-                _blockedKeys.Remove(key);
-            else
-                _blockedKeys[key] = new Queue<ClientState>(filtered);
-        }
-
-        client.IsBlocked = false;
-        client.BlockedKeys?.Clear();
-        client.BlockedCommand = null;
-        client.BlockExpiryInMs = long.MaxValue;
-    }
-
-    private List<ClientState> DrainExpiredFromQueue(long nowMs, Queue<ClientState> queue)
-    {
-        var expired = new List<ClientState>();
-        while (queue.Count > 0)
-        {
-            var front = queue.Peek();
-            if (front == null)
+            var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            if (client.BlockExpiryInMs <= nowMs)
             {
-                queue.Dequeue();
+                client.Client.PendingReplies.Enqueue(RedisResponse.NullString());
+                clientsToRemove.Add(client);
                 continue;
             }
 
-            if (front.BlockExpiryInMs <= nowMs)
+            var response = TryGenerateResponse(client, key);
+            if (response != null)
             {
-                var c = queue.Dequeue();
-                c.IsBlocked = false;
-                c.BlockedKeys?.Clear();
-                c.BlockExpiryInMs = long.MaxValue;
-                c.BlockedCommand = null;
-                expired.Add(c);
-                continue;
+                client.Client.PendingReplies.Enqueue(response);
+                clientsToRemove.Add(client);
             }
-
-            break;
         }
 
-        return expired;
+        foreach (var client in clientsToRemove)
+        {
+            RemoveClientFromAllKeys(client);
+        }
+
+        if (!clients.Any())
+            _blockedClients.Remove(key);
     }
-    
+
+    private RedisCommand TryGenerateResponse(BlockedClient blockedClient, string changedKey)
+    {
+        switch (blockedClient.CommandType)
+        {
+            case "XREAD":
+                return TryUnblockXRead(blockedClient, changedKey);
+            case "BLPOP":
+                return TryUnblockBLPop(blockedClient, changedKey);
+            default:
+                return null;
+        }
+    }
+
+    private RedisCommand TryUnblockXRead(BlockedClient blockedClient, string changedKey)
+    {
+        var streamAndIds = (Dictionary<string, string>)blockedClient.Parameters["StreamAndIds"];
+        var count = (int)blockedClient.Parameters.GetValueOrDefault("Count", -1);
+
+        var result = Database.Instance.RangeStreamMultiple(streamAndIds, count);
+        bool hasData = result.Any(x => x.Value != null && x.Value.Count > 0);
+
+        return hasData ? StreamResponse.XRead(result) : null;
+    }
+
+    private RedisCommand TryUnblockBLPop(BlockedClient blockedClient, string changedKey)
+    {
+        var keys = (List<string>)blockedClient.Parameters["Keys"];
+
+        foreach (var key in keys)
+        {
+            var val = Database.Instance.ListPop(key, 1);
+            if (val != null && val.Count > 0)
+            {
+                return RedisResponse.Array(RedisResponse.String(key), RedisResponse.String(val[0]));
+            }
+        }
+
+        return null;
+    }
+
+    public void RemoveClientFromAllKeys(BlockedClient blockedClient)
+    {
+        foreach (var kvp in _blockedClients.ToList())
+        {
+            var key = kvp.Key;
+            var clients = kvp.Value;
+
+            clients.RemoveAll(c => ReferenceEquals(c.Client, blockedClient.Client));
+
+            if (!clients.Any())
+                _blockedClients.Remove(key);
+        }
+
+        blockedClient.Client.IsBlocked = false;
+    }
+
+    public List<ClientState> GetAndRemoveExpiredClients()
+    {
+        var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var expiredClients = new List<ClientState>();
+
+        foreach (var kvp in _blockedClients.ToList())
+        {
+            var clients = kvp.Value;
+            var expired = clients.Where(c => c.BlockExpiryInMs <= nowMs).ToList();
+
+            foreach (var expiredClient in expired)
+            {
+                expiredClients.Add(expiredClient.Client);
+            }
+
+            clients.RemoveAll(c => c.BlockExpiryInMs <= nowMs);
+
+            if (!clients.Any())
+                _blockedClients.Remove(kvp.Key);
+        }
+
+        foreach (var client in expiredClients)
+        {
+            client.IsBlocked = false;
+            client.PendingReplies.Enqueue(RedisResponse.NullString());
+        }
+
+        return expiredClients;
+    }
 }
 
 public class ClientState
@@ -149,13 +162,18 @@ public class ClientState
     public StringBuilder InputBuffer { get; set; } = new();
     public Queue<RedisCommand> PendingReplies { get; } = new();
     public bool IsBlocked { get; set; } = false;
-    public List<string> BlockedKeys { get; set; }
-    public long BlockExpiryInMs { get; set; } = long.MaxValue;
-    public RedisCommand BlockedCommand { get; set; }
     public Queue<byte[]> PendingWrites { get; } = new();
 
     public override string ToString()
     {
         return $"Value for current state: {JsonSerializer.Serialize(this)}";
     }
+}
+
+public class BlockedClient
+{
+    public ClientState Client { get; set; }
+    public string CommandType { get; set; }
+    public long BlockExpiryInMs { get; set; }
+    public Dictionary<string, object> Parameters { get; set; } = new();
 }

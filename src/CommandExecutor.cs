@@ -70,27 +70,28 @@ public class CommandExecutor
         if (clientState == null) return RedisResponse.Error("ERR internal: missing client state for blocking command");
 
         int i = 0;
-        int count = 0;
-        long blockMs = 0;
-        var streamAndIds = new Dictionary<string, string>();
+        int count = -1;
+        long blockMs = -1;
+        
         if (i < args.Count && args[i].ToUpper() == "COUNT")
         {
             i++;
-            if (i < args.Count && int.TryParse(args[i], out int countVal))
+            if (i >= args.Count || !int.TryParse(args[i], out count) || count <= 0)
             {
-                count = countVal;
-                i++;
+                return RedisResponse.Error("ERR syntax error");
             }
+            i++;
         }
 
         if (i < args.Count && args[i].ToUpper() == "BLOCK")
         {
             i++;
-            if (i < args.Count && long.TryParse(args[i], out long blockMsVal))
+            if (i >= args.Count || !long.TryParse(args[i], out blockMs) || blockMs < 0)
             {
-                blockMs = blockMsVal;
-                i++;
+                return RedisResponse.Error("ERR syntax error");
             }
+
+            i++;
         }
 
         int streamIndex = -1;
@@ -106,7 +107,7 @@ public class CommandExecutor
 
         int remainingArgs = args.Count - streamIndex - 1;
         int streamCount = remainingArgs / 2;
-
+        var streamAndIds = new Dictionary<string, string>();
         for (int k = 0; k < streamCount; k++)
         {
             var key = args[streamIndex + 1 + k];
@@ -114,20 +115,19 @@ public class CommandExecutor
             streamAndIds.Add(key, id);
         }
 
-        var result = Database.Instance.RangeStreamMultiple(streamAndIds);
+        var result = Database.Instance.RangeStreamMultiple(streamAndIds, count);
+        bool hasData = result.Any(x => x.Value != null && x.Value.Count > 0);
 
-        if (result.Where(x => x.Value != null).Count() > 0)
-        {
+        if (hasData || blockMs == -1)
             return StreamResponse.XRead(result);
-        }
 
-        var now = DateTimeOffset.UtcNow.AddMilliseconds(blockMs).ToUnixTimeMilliseconds();
-        var deadline = blockMs == 0 ? long.MaxValue : now;
-
-        foreach (var (key, id) in streamAndIds)
+        var parameters = new Dictionary<string, object>()
         {
-            _clientManager.RegisterBlocked(clientState, string.Concat(key,id), deadline, null);
-        }
+            ["StreamAndIds"] = streamAndIds,
+            ["Count"] = count
+        };
+        
+        _clientManager.BlockClient(clientState, streamAndIds.Keys.ToArray(), "XREAD", blockMs, parameters);
 
         return null;
     }
@@ -165,13 +165,7 @@ public class CommandExecutor
         try
         {
             var addedId = Database.Instance.AddStream(key, id, kvPair);
-            var client = _clientManager.TryUnblockOneForKey(string.Concat(key,id));
-            if (client != null)
-            {
-                var reply = StreamResponse.XReadSingle(key, addedId, kvPair);
-                client.PendingReplies.Enqueue(reply);
-                _clientManager.RemoveBlockedClientFromAllKeys(client);
-            }
+            _clientManager.NotifyKeyChanged(key, "XADD");
             return RedisResponse.String(addedId);
         }
         catch (Exception ex) when (ex is RedisStreamException || ex is InvalidOperationException)
@@ -211,12 +205,13 @@ public class CommandExecutor
                 return RedisResponse.Array(RedisResponse.String(key), RedisResponse.String(val[0]));
             }
         }
-        var now = DateTimeOffset.UtcNow.AddSeconds(timeoutSec).ToUnixTimeMilliseconds();
-        var deadline = timeoutSec == 0 ? long.MaxValue : now;
-        foreach (var key in keys)
+
+        var parameters = new Dictionary<string, object>
         {
-            _clientManager.RegisterBlocked(clientState, key, deadline, null);
-        }
+            ["Keys"] = keys
+        };
+        
+        _clientManager.BlockClient(clientState, keys.ToArray(), "BLPOP", (long)(timeoutSec * 1000),parameters);
 
         return null;
     }
@@ -258,31 +253,10 @@ public class CommandExecutor
         if (args.Count < 2) return RedisResponse.Error("ERR wrong number of arguments for 'lpush' command");
         var key = args[0];
         var values = args.Skip(1).ToList();
-        int count = 0;
-
-        while (values.Count > 0)
-        {
-            var client = _clientManager.TryUnblockOneForKey(key);
-            if (client == null) break;
-            var item = values[0];
-            values.RemoveAt(0);
-            count++;
-
-            var reply = RedisResponse.Array(RedisResponse.String(key), RedisResponse.String(item));
-            client.PendingReplies.Enqueue(reply);
-
-            _clientManager.RemoveBlockedClientFromAllKeys(client);
-        }
-
-        if (values.Count > 0)
-        {
-            count += Database.Instance.ListLeftPush(key, values);
-        }
-        else
-        {
-            count += Database.Instance.ListLength(key);
-        }
-
+        int count = Database.Instance.ListLeftPush(key, values);
+        
+        _clientManager.NotifyKeyChanged(key, "LPUSH");
+        
         return RedisResponse.Integer(count);
     }
 
@@ -291,31 +265,9 @@ public class CommandExecutor
         if (args.Count < 2) return RedisResponse.Error("ERR wrong number of arguments for 'rpush' command");
         var key = args[0];
         var values = args.Skip(1).ToList();
-        int count = 0;
-
-        while (values.Count > 0)
-        {
-            var client = _clientManager.TryUnblockOneForKey(key);
-            if (client == null) break;
-            var item = values[0];
-            values.RemoveAt(0);
-            count++;
-
-            var reply = RedisResponse.Array(RedisResponse.String(key), RedisResponse.String(item));
-            client.PendingReplies.Enqueue(reply);
-
-            _clientManager.RemoveBlockedClientFromAllKeys(client);
-        }
-
-
-        if (values.Count > 0)
-        {
-            count += Database.Instance.ListRightPush(key, values);
-        }
-        else
-        {
-            count += Database.Instance.ListLength(key);
-        }
+        int count = Database.Instance.ListRightPush(key, values);
+        
+        _clientManager.NotifyKeyChanged(key, "RPUSH");
 
         return RedisResponse.Integer(count);
     }

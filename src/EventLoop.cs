@@ -79,17 +79,11 @@ public class EventLoop
                 CloseClient(client);
             }
 
-            var expired = _clientManager.ScanAndExpire();
-            foreach (var client in expired)
-            {
-                var nil = new RedisCommand { Type = RedisType.NullBulkString };
-                client.PendingReplies.Enqueue(nil);
-                _clientManager.RemoveBlockedClientFromAllKeys(client);
-            }
+            _clientManager.GetAndRemoveExpiredClients();
         }
     }
 
-    public void HandleRead(Socket client)
+    private void HandleRead(Socket client)
     {
         try
         {
@@ -137,7 +131,7 @@ public class EventLoop
         }
     }
 
-    public void HandleWrite(Socket client)
+    private void HandleWrite(Socket client)
     {
         if (!_clientStates.TryGetValue(client, out var state)) return;
 
@@ -175,7 +169,11 @@ public class EventLoop
     {
         if (_clientStates.TryGetValue(client, out var state))
         {
-            _clientManager.RemoveBlockedClientFromAllKeys(state);
+            if (state.IsBlocked)
+            {
+                var blockedClient = new BlockedClient() { Client = state };
+                _clientManager.RemoveClientFromAllKeys(blockedClient);
+            }
         }
 
         _clients.Remove(client);
