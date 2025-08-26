@@ -6,6 +6,7 @@ public static class RedisResponse
     public static RedisCommand Pong() => new() { Type = RedisType.SimpleString, StringValue = "PONG" };
     public static RedisCommand Error(string message) => new() { Type = RedisType.Error, StringValue = message };
     public static RedisCommand String(string value) => new() { Type = RedisType.BulkString, StringValue = value };
+    public static RedisCommand SimpleString(string value) => new() { Type = RedisType.SimpleString, StringValue = value };
     public static RedisCommand NullString() => new() { Type = RedisType.NullBulkString };
     public static RedisCommand Integer(long value) => new() { Type = RedisType.Integer, IntegerValue = value };
 
@@ -50,16 +51,31 @@ public static class StreamResponse
     {
         if (streamsData == null || !streamsData.Any())
             return RedisResponse.Array();
-            
+
         var streamItems = streamsData
             .Where(stream => stream.Value != null && stream.Value.Any())
-            .Select(stream => 
+            .Select(stream =>
                 RedisResponse.Array(
                     RedisResponse.String(stream.Key),
                     XRange(stream.Value)
                 )
             );
-            
+
         return RedisResponse.Array(streamItems.ToArray());
+    }
+
+    public static RedisCommand XReadSingle(string key, string entryId, Dictionary<string, string> fields)
+    {
+        var streamEntries = new Dictionary<string, Dictionary<string, string>>
+        {
+            [entryId] = fields
+        };
+
+        var streamsData = new Dictionary<string, Dictionary<string, Dictionary<string, string>>>
+        {
+            [key] = streamEntries
+        };
+
+        return XRead(streamsData);
     }
 }
