@@ -50,6 +50,7 @@ public class CommandExecutor
             case "XADD": return HandleXAdd(args);
             case "XRANGE": return HandleXRange(args);
             case "XREAD": return HandleXRead(args, clientState);
+            case "MULTI": return HandleMulti(args);
             default: return RedisResponse.Error($"ERR unknown command '{cmdName}'");
         }
     }
@@ -63,6 +64,11 @@ public class CommandExecutor
             return nestedReply.ToString();
         }
         return argNode.ToString();
+    }
+
+    private RedisCommand HandleMulti(List<string> args)
+    {
+        return RedisResponse.Ok();
     }
 
     private RedisCommand HandleIncr(List<string> args)
