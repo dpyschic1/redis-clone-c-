@@ -55,6 +55,7 @@ public class CommandExecutor
             case "DISCARD": return HandleDiscard(clientState);
             case "INFO": return HandleInfo(args);
             case "REPLCONF": return HandleReplConf(args);
+            case "PSYNC": return HandlePSync(args);
             default: return RedisResponse.Error($"ERR unknown command '{cmdName}'");
         }
     }
@@ -70,9 +71,16 @@ public class CommandExecutor
         return argNode.ToString();
     }
 
+    public RedisCommand HandlePSync(List<string> args)
+    {
+        if (args.Count < 2) return RedisResponse.Error("ERR ERR missing arguments");
+
+        return RedisResponse.SimpleString($"FULLRESYNC {ServerInfo.MasterReplicaId} 0");
+    }
+    
     public RedisCommand HandleReplConf(List<string> args)
     {
-        if(args.Count < 2) return RedisResponse.Error("Protocol error: missing arguments");
+        if(args.Count < 2) return RedisResponse.Error("ERR missing arguments");
 
         return RedisResponse.Ok();
     }
