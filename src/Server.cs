@@ -23,7 +23,8 @@ for (int i = 0; i < args.Length; i++)
     }
 }
 
-var port = cmdArgs.TryGetValue("port", out var portStr) ? int.Parse(portStr) : 6379;
+ServerInfo.Port = cmdArgs.TryGetValue("port", out var portStr) ? int.Parse(portStr) : 6379;
+
 var isReplicaOf = cmdArgs.TryGetValue("replicaof", out var hostAddress);
 
 if (isReplicaOf)
@@ -35,7 +36,7 @@ if (isReplicaOf)
 }
 
 
-var eventLoop = new EventLoop(port, redisParser, commandExecutor, redisSerializer);
+var eventLoop = new EventLoop(ServerInfo.Port, redisParser, commandExecutor, redisSerializer);
 eventLoop.Run();
 
 public static class ServerInfo
@@ -47,6 +48,8 @@ public static class ServerInfo
     public static string? MasterAddress  {get;set;}
     public static int? MasterPort {get;set;}
     public static bool IsMaster() => MasterHost == "master";
+    
+    public static int Port { get; set; }
 
     public static string ToStringReplication()
     {

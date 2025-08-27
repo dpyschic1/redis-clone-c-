@@ -36,13 +36,7 @@ public class EventLoop
     {
         if (!ServerInfo.IsMaster())
         {
-            var responseString = RedisResponse.String("PING");
-            var responseToHost = _serializer.Serialize(RedisResponse.Array(responseString));
-            var host = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            var hostIp = ServerInfo.MasterAddress == "localhost" ?  IPAddress.Loopback : Dns.GetHostAddresses(ServerInfo.MasterAddress)[0];
-            var ipEndpoint = new IPEndPoint(hostIp, ServerInfo.MasterPort.Value);
-            host.Connect(ipEndpoint);
-            host.Send(responseToHost);
+            HandleMasterSlave();   
         }
         while (_running)
         {
@@ -202,6 +196,45 @@ public class EventLoop
         client.Close();
     }
 
+    private void HandleMasterSlave()
+    {
+        var buffer = new byte[1024];
+        var host = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        var hostIp = ServerInfo.MasterAddress == "localhost" ?  IPAddress.Loopback : Dns.GetHostAddresses(ServerInfo.MasterAddress)[0];
+        var ipEndpoint = new IPEndPoint(hostIp, ServerInfo.MasterPort.Value);
+        host.Connect(ipEndpoint);
+        
+        host.Send(_serializer.Serialize(HandShakeResponse.Ping()));
+        host.Receive(buffer);
+        var parsedHost = _redisParser.Parse(buffer);
+        if (parsedHost.StringValue != "PONG")
+        {
+            host.Close();
+            _running = false;
+            return;
+        }
+
+        host.Send(_serializer.Serialize(HandShakeResponse.ReplConfPort()));
+        host.Receive(buffer);
+        if (_redisParser.Parse(buffer).StringValue != "OK")
+        {
+            host.Close();
+            _running = false;
+            return;
+        }
+
+        host.Send(_serializer.Serialize(HandShakeResponse.ReplConfCapa()));
+        host.Receive(buffer);
+        if (_redisParser.Parse(buffer).StringValue != "OK")
+        {
+            host.Close();
+            _running = false;
+            return;
+        }
+        
+        host.Close();
+    }
+    
     public void Stop() => _running = false;
 }
 
