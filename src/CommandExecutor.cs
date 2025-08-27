@@ -67,7 +67,7 @@ public class CommandExecutor
 
     private RedisCommand HandleIncr(List<string> args)
     {
-        if (args.Count < 2) return RedisResponse.Error("ERR wrong number of arguments for INCR command");
+        if (args.Count > 1) return RedisResponse.Error("ERR wrong number of arguments for INCR command");
 
         var key = args[0];
 
