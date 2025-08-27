@@ -53,6 +53,7 @@ public class CommandExecutor
             case "MULTI": return HandleMulti(clientState);
             case "EXEC": return HandleExec(clientState);
             case "DISCARD": return HandleDiscard(clientState);
+            case "INFO": return HandleInfo(args);
             default: return RedisResponse.Error($"ERR unknown command '{cmdName}'");
         }
     }
@@ -66,6 +67,16 @@ public class CommandExecutor
             return nestedReply.ToString();
         }
         return argNode.ToString();
+    }
+
+    public RedisCommand HandleInfo(List<string> args)
+    {
+        if (args[0] == "replication")
+        {
+            return RedisResponse.String(ServerInfo.ToStringReplication());
+        }
+
+        return RedisResponse.NullString();
     }
 
     public RedisCommand HandleDiscard(ClientState clientState)
