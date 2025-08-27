@@ -54,6 +54,7 @@ public class CommandExecutor
             case "EXEC": return HandleExec(clientState);
             case "DISCARD": return HandleDiscard(clientState);
             case "INFO": return HandleInfo(args);
+            case "REPLCONF": return HandleReplConf(args);
             default: return RedisResponse.Error($"ERR unknown command '{cmdName}'");
         }
     }
@@ -69,6 +70,13 @@ public class CommandExecutor
         return argNode.ToString();
     }
 
+    public RedisCommand HandleReplConf(List<string> args)
+    {
+        if(args.Count < 2) return RedisResponse.Error("Protocol error: missing arguments");
+
+        return RedisResponse.Ok();
+    }
+    
     public RedisCommand HandleInfo(List<string> args)
     {
         if (args[0] == "replication")
