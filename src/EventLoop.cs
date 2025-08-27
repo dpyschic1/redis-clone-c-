@@ -110,6 +110,12 @@ public class EventLoop
 
                 state.InputBuffer.Remove(0, consumed);
 
+                if (state.IsInTransaction && command.Items[0].ToString().ToUpper() != "EXEC")
+                {
+                    _clientManager.AddTransactionForClient(state, command);
+                    continue;
+                }
+                
                 var result = _commandExecutor.Execute(command, state);
 
                 if (result != null)

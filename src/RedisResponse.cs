@@ -3,13 +3,13 @@ namespace Server;
 public static class RedisResponse
 {
     public static RedisCommand Ok() => new() { Type = RedisType.SimpleString, StringValue = "OK" };
-    public static RedisCommand Pong() => new() { Type = RedisType.SimpleString, StringValue = "PONG" };
     public static RedisCommand Error(string message) => new() { Type = RedisType.Error, StringValue = message };
     public static RedisCommand String(string value) => new() { Type = RedisType.BulkString, StringValue = value };
     public static RedisCommand SimpleString(string value) => new() { Type = RedisType.SimpleString, StringValue = value };
     public static RedisCommand NullString() => new() { Type = RedisType.NullBulkString };
     public static RedisCommand Integer(long value) => new() { Type = RedisType.Integer, IntegerValue = value };
-
+    public static RedisCommand EmptyArray() => new() { Type = RedisType.Array , Items = new List<RedisCommand>() };
+    
     public static RedisCommand Array(params RedisCommand[] items) => new()
     {
         Type = RedisType.Array,

@@ -9,6 +9,8 @@ public class ClientStateManager
     public static ClientStateManager Instance => _instance;
 
     private readonly Dictionary<string, List<BlockedClient>> _blockedClients = new();
+    
+    private readonly Dictionary<ClientState, ClientTransactions> _clientTransactions = new();
 
     public void BlockClient(ClientState state, string[] keys, string commandType, long timeoutMs,
         Dictionary<string, object> parameters = null)
@@ -68,6 +70,43 @@ public class ClientStateManager
 
         if (!clients.Any())
             _blockedClients.Remove(key);
+    }
+
+    public void StartTransactionForClient(ClientState state)
+    {
+        if (!state.IsBlocked)
+        {
+            var transaction = new ClientTransactions();
+            _clientTransactions.Add(state, transaction);
+            
+            state.IsInTransaction = true;
+        }
+    }
+
+    public void AddTransactionForClient(ClientState state, RedisCommand commands)
+    {
+        if(!state.IsInTransaction) return;
+
+        if (_clientTransactions.TryGetValue(state, out var transaction))
+        {
+            transaction.Transactions.Enqueue(commands);
+        }
+    }
+
+    public bool TryGetTransactionForClient(ClientState state, out Queue<RedisCommand> commands)
+    {
+        commands = null;
+        
+        if (!state.IsInTransaction) return false;
+
+        if (_clientTransactions.TryGetValue(state, out var transaction))
+        {
+            state.IsInTransaction = false;
+            commands = transaction.Transactions;
+            return true;
+        }
+
+        return false;
     }
 
     private RedisCommand TryGenerateResponse(BlockedClient blockedClient, string changedKey)
@@ -162,6 +201,7 @@ public class ClientState
     public StringBuilder InputBuffer { get; set; } = new();
     public Queue<RedisCommand> PendingReplies { get; } = new();
     public bool IsBlocked { get; set; } = false;
+    public bool IsInTransaction { get; set; } = false;
     public Queue<byte[]> PendingWrites { get; } = new();
 
     public override string ToString()
@@ -176,4 +216,9 @@ public class BlockedClient
     public string CommandType { get; set; }
     public long BlockExpiryInMs { get; set; }
     public Dictionary<string, object> Parameters { get; set; } = new();
+}
+
+public class ClientTransactions
+{
+    public Queue<RedisCommand> Transactions { get; set; } = new();
 }

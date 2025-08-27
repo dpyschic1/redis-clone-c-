@@ -32,7 +32,7 @@ public class CommandExecutor
         {
             args.Add(Eval(argNode));
         }
-
+        
         switch (cmdName.ToUpperInvariant())
         {
             case "ECHO": return HandleEcho(args);
@@ -50,8 +50,8 @@ public class CommandExecutor
             case "XADD": return HandleXAdd(args);
             case "XRANGE": return HandleXRange(args);
             case "XREAD": return HandleXRead(args, clientState);
-            case "MULTI": return HandleMulti(args);
-            case "EXEC": return HandleExec(args);
+            case "MULTI": return HandleMulti(args, clientState);
+            case "EXEC": return HandleExec(args, clientState);
             default: return RedisResponse.Error($"ERR unknown command '{cmdName}'");
         }
     }
@@ -67,13 +67,30 @@ public class CommandExecutor
         return argNode.ToString();
     }
 
-    private RedisCommand HandleExec(List<string> args)
+    private RedisCommand HandleExec(List<string> args, ClientState clientState)
     {
+        if (!_clientManager.TryGetTransactionForClient(clientState, out var commands))
+        {
+            if (commands.Count == 0) return RedisResponse.EmptyArray();
+            var responses = new List<RedisCommand>();
+            while (commands.Count > 0)
+            {
+                var command = commands.Dequeue();
+                var response = ExecuteArrayCommand(command, clientState);
+                responses.Add(response);
+            }
+            
+            if(responses.Count > 0)
+                return responses.LastOrDefault();
+
+            return RedisResponse.EmptyArray();
+        }
         return RedisResponse.Error("ERR EXEC without MULTI");
     }
 
-    private RedisCommand HandleMulti(List<string> args)
+    private RedisCommand HandleMulti(List<string> args, ClientState clientState)
     {
+        _clientManager.StartTransactionForClient(clientState);
         return RedisResponse.Ok();
     }
 
