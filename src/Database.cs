@@ -52,8 +52,8 @@ public class Database
                 _dataStore.TryRemove(key, out _);
                 return null;
             }
-            
-            _dataStore[key] = new RedisValue(RedisDataType.String, intVal++.ToString());
+            intVal++;
+            _dataStore[key] = new RedisValue(RedisDataType.String, intVal.ToString());
 
             return intVal;
         }
