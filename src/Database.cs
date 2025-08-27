@@ -47,9 +47,14 @@ public class Database
     {
         if (_dataStore.TryGetValue(key, out var value))
         {
-            if (value.IsExpired || !long.TryParse(value.AsString(), out var intVal))
+            if (value.IsExpired )
             {
                 _dataStore.TryRemove(key, out _);
+                return null;
+            }
+
+            if (!long.TryParse(value.AsString(), out var intVal))
+            {
                 return null;
             }
             intVal++;
