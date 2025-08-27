@@ -110,7 +110,7 @@ public class EventLoop
 
                 state.InputBuffer.Remove(0, consumed);
 
-                if (_clientManager.IsTransactionEndTrigger(state, command))
+                if (_clientManager.IsTransactionContinue(state, command))
                 {
                     _clientManager.AddTransactionForClient(state, command);
                     continue;

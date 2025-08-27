@@ -123,11 +123,10 @@ public class ClientStateManager
         return false;
     }
 
-    public bool IsTransactionEndTrigger(ClientState state, RedisCommand command)
+    public bool IsTransactionContinue(ClientState state, RedisCommand command)
     {
-        return  _clientTransactions.ContainsKey(state) 
-                && state.IsInTransaction 
-                && TransactionEndCommands.Contains(command.Items[0].ToString().ToUpper()); ;
+        return  state.IsInTransaction 
+                && !TransactionEndCommands.Contains(command.Items[0].ToString().ToUpper()); ;
     }
 
     private RedisCommand TryGenerateResponse(BlockedClient blockedClient, string changedKey)
