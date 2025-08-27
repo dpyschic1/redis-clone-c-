@@ -115,7 +115,14 @@ public class CommandExecutor
             streamAndIds.Add(key, id);
         }
 
-        var result = Database.Instance.RangeStreamMultiple(streamAndIds, count);
+        var toQuery = streamAndIds
+            .Where(kv => kv.Value != "$")
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
+
+        var result = toQuery.Count > 0
+            ? Database.Instance.RangeStreamMultiple(streamAndIds, count)
+            : [];
+
         bool hasData = result.Any(x => x.Value != null && x.Value.Count > 0);
 
         if (hasData || blockMs == -1)

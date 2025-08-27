@@ -43,11 +43,11 @@ public class RedisStream
     {
         if (startId == "$")
         {
-            var last = Last();
-            if (last == null) return ImmutableSortedDictionary<StreamId, StreamEntry>.Empty;
+            if(!_entries.TryGetValue(_lastId, out var last))
+                 return ImmutableSortedDictionary<StreamId, StreamEntry>.Empty;
 
             return ImmutableSortedDictionary.CreateRange(
-                new[] { new KeyValuePair<StreamId, StreamEntry>(last.Value.Id, last.Value.Entry) });
+                new[] { new KeyValuePair<StreamId, StreamEntry>(_lastId, last) });
         }
 
         var parts = startId.Split('-');
@@ -56,15 +56,6 @@ public class RedisStream
         var searchAfterId = new StreamId(ms, seq);
 
         return RangeAfter(searchAfterId, count);
-    }
-
-    public (StreamId Id, StreamEntry Entry)? Last()
-    {
-        if (_entries.Count == 0)
-            return null;
-
-        var last = _entries.Last();
-        return (last.Key, last.Value);
     }
 
     private StreamId GenerateId(StreamId? id, bool isSequenceWildCard)
