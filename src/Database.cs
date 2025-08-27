@@ -213,27 +213,9 @@ public class Database
             if (!_dataStore.TryGetValue(key, out var existingValue) && existingValue.Type == RedisDataType.Stream);
             
             var stream =  existingValue.AsStream();
-            StreamId searchAfterId;
-            if (startId == "$")
-            {
-                searchAfterId = stream.GetLastId();
-            }
-            else
-            {
-                var parts = startId.Split('-');
-                var ms = long.Parse(parts[0]);
-                var seq = parts.Length > 1 ? long.Parse(parts[1]) : 0;
-                searchAfterId = new StreamId(ms, seq);
-            }
-
-            var entries = stream.RangeAfter(searchAfterId, count);
-            var resultDict = new Dictionary<string, Dictionary<string, string>>();
-            foreach (var (streamId, entry) in entries)
-            {
-                resultDict.Add(streamId.ToString(), entry.Fields);
-            }
             
-            result.Add(key, resultDict);
+            var entries = stream.ReadFrom(startId, count);
+            result[key] = entries.ToDictionary(e => e.Key.ToString(), e => e.Value.Fields);
         }
 
         return result;

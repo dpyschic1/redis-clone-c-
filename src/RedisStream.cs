@@ -7,8 +7,6 @@ public class RedisStream
     private readonly SortedDictionary<StreamId, StreamEntry> _entries = new();
     private StreamId _lastId = new(0, 0);
     
-    public StreamId GetLastId() => _lastId;
-    
     public StreamId Add(Dictionary<string, string> fields, StreamId? id = null, bool isSequenceWildCard = false)
     {
         if(fields == null || fields.Count == 0)
@@ -29,6 +27,7 @@ public class RedisStream
         ToImmutableSortedDictionary(g => g.Key, g => g.Value);
     }
 
+    
     public ImmutableSortedDictionary<StreamId, StreamEntry> RangeAfter(StreamId startId, int count)
     {
         var query = _entries.Where(k => k.Key.CompareTo(startId) > 0);
@@ -38,6 +37,34 @@ public class RedisStream
         }
 
         return query.ToImmutableSortedDictionary(g => g.Key, g => g.Value);
+    }
+
+    public ImmutableSortedDictionary<StreamId, StreamEntry> ReadFrom(string startId, int count)
+    {
+        if (startId == "$")
+        {
+            var last = Last();
+            if (last == null) return ImmutableSortedDictionary<StreamId, StreamEntry>.Empty;
+
+            return ImmutableSortedDictionary.CreateRange(
+                new[] { new KeyValuePair<StreamId, StreamEntry>(last.Value.Id, last.Value.Entry) });
+        }
+
+        var parts = startId.Split('-');
+        var ms = long.Parse(parts[0]);
+        var seq = parts.Length > 1 ? long.Parse(parts[1]) : 0;
+        var searchAfterId = new StreamId(ms, seq);
+
+        return RangeAfter(searchAfterId, count);
+    }
+
+    public (StreamId Id, StreamEntry Entry)? Last()
+    {
+        if (_entries.Count == 0)
+            return null;
+
+        var last = _entries.Last();
+        return (last.Key, last.Value);
     }
 
     private StreamId GenerateId(StreamId? id, bool isSequenceWildCard)
