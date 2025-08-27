@@ -58,7 +58,9 @@ public class Database
             return intVal;
         }
 
-        return null;
+        Set(key, "1");
+
+        return 1;
     }
 
     public int ListLength(string key)
