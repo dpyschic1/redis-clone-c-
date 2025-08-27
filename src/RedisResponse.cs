@@ -27,6 +27,12 @@ public static class RedisResponse
         Type = RedisType.Array,
         Items = items?.Select(converter).ToList() ?? new List<RedisCommand>()
     };
+
+    public static RedisCommand Array(IEnumerable<RedisCommand> items) => new()
+    {
+        Type = RedisType.Array,
+        Items = items?.ToList() ?? []
+    };
 }
 
 public static class StreamResponse

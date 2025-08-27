@@ -81,7 +81,7 @@ public class CommandExecutor
             }
             
             if(responses.Count > 0)
-                return responses.LastOrDefault();
+                return RedisResponse.Array(responses);
 
             return RedisResponse.EmptyArray();
         }
