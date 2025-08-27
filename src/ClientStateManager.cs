@@ -77,9 +77,8 @@ public class ClientStateManager
         if (!state.IsBlocked)
         {
             var transaction = new ClientTransactions();
-            _clientTransactions.Add(state, transaction);
-            
             state.IsInTransaction = true;
+            _clientTransactions.Add(state, transaction);
         }
     }
 
