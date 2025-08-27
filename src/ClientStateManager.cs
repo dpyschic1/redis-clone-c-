@@ -9,8 +9,10 @@ public class ClientStateManager
     public static ClientStateManager Instance => _instance;
 
     private readonly Dictionary<string, List<BlockedClient>> _blockedClients = new();
-    
+
     private readonly Dictionary<ClientState, ClientTransactions> _clientTransactions = new();
+
+    private static readonly string[] TransactionEndCommands = { "EXEC", "DISCARD"};
 
     public void BlockClient(ClientState state, string[] keys, string commandType, long timeoutMs,
         Dictionary<string, object> parameters = null)
@@ -107,6 +109,25 @@ public class ClientStateManager
         }
 
         return false;
+    }
+
+    public bool TryRemoveTransactionForClient(ClientState state)
+    {
+        if (_clientTransactions.TryGetValue(state, out var transaction))
+        {
+            state.IsInTransaction = false;
+            _clientTransactions.Remove(state);
+            return true;
+        }
+
+        return false;
+    }
+
+    public bool IsTransactionEndTrigger(ClientState state, RedisCommand command)
+    {
+        return  _clientTransactions.ContainsKey(state) 
+                && state.IsInTransaction 
+                && TransactionEndCommands.Contains(command.Items[0].ToString().ToUpper()); ;
     }
 
     private RedisCommand TryGenerateResponse(BlockedClient blockedClient, string changedKey)
