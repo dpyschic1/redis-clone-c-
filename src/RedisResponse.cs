@@ -9,6 +9,7 @@ public static class RedisResponse
     public static RedisCommand NullString() => new() { Type = RedisType.NullBulkString };
     public static RedisCommand Integer(long value) => new() { Type = RedisType.Integer, IntegerValue = value };
     public static RedisCommand EmptyArray() => new() { Type = RedisType.Array , Items = new List<RedisCommand>() };
+    public static RedisCommand Binary(byte[] bin) => new() { Type = RedisType.Binary, BinaryValue = bin };
     
     public static RedisCommand Array(params RedisCommand[] items) => new()
     {

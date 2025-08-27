@@ -55,7 +55,7 @@ public class CommandExecutor
             case "DISCARD": return HandleDiscard(clientState);
             case "INFO": return HandleInfo(args);
             case "REPLCONF": return HandleReplConf(args);
-            case "PSYNC": return HandlePSync(args);
+            case "PSYNC": return HandlePSync(args, clientState);
             default: return RedisResponse.Error($"ERR unknown command '{cmdName}'");
         }
     }
@@ -71,11 +71,16 @@ public class CommandExecutor
         return argNode.ToString();
     }
 
-    public RedisCommand HandlePSync(List<string> args)
+    public RedisCommand HandlePSync(List<string> args, ClientState clientState)
     {
         if (args.Count < 2) return RedisResponse.Error("ERR ERR missing arguments");
 
-        return RedisResponse.SimpleString($"FULLRESYNC {ServerInfo.MasterReplicaId} 0");
+        clientState.PendingReplies.Enqueue(RedisResponse.SimpleString($"FULLRESYNC {ServerInfo.MasterReplicaId} 0"));
+
+        var fileContents =
+            Convert.FromBase64String(
+                "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog==");
+        return RedisResponse.Binary(fileContents);
     }
     
     public RedisCommand HandleReplConf(List<string> args)

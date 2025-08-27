@@ -70,7 +70,16 @@ public class RedisSerializer
                         WriteNode(s, item);
                 }
                 break;
-
+            case RedisType.Binary:
+                s.WriteByte((byte)'$');
+                if (node.BinaryValue == null)
+                {
+                    WriteStringAndCrLf(s, "");
+                    return;
+                }
+                WriteStringAndCrLf(s, node.BinaryValue?.Length.ToString());
+                s.Write(node.BinaryValue, 0, node.BinaryValue.Length);
+                break;
             default:
                 throw new NotSupportedException($"Unsupported Redis type: {node.Type}");
         }

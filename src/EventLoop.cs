@@ -234,6 +234,11 @@ public class EventLoop
 
         host.Send(_serializer.Serialize(HandShakeResponse.PSync()));
         host.Receive(buffer);
+
+        if (_redisParser.Parse(buffer).StringValue.StartsWith("FULLRESYNC"))
+        {
+            host.Receive(buffer);
+        }
         
         host.Close();
     }

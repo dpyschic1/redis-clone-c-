@@ -113,6 +113,7 @@ public class RedisCommand
     public RedisType Type { get; set; }
     public string StringValue { get; set; }
     public long? IntegerValue { get; set; }
+    public byte[] BinaryValue { get; set; }
     public List<RedisCommand> Items { get; set; } = new();
     public bool IsArray => Type == RedisType.Array;
     public bool IsBulkString => Type == RedisType.BulkString || Type == RedisType.NullBulkString;
@@ -137,5 +138,6 @@ public enum RedisType
     SimpleString,
     Error,
     Integer,
+    Binary,
     NullBulkString
 }
