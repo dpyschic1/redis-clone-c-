@@ -31,7 +31,7 @@ public class RedisStream
 
     public ImmutableSortedDictionary<StreamId, StreamEntry> RangeAfter(StreamId startId, int count)
     {
-        var query = _entries.Where(k => k.Key.CompareTo(startId) >= 0);
+        var query = _entries.Where(k => k.Key.CompareTo(startId) > 0);
         if (count > 0)
         {
             query = query.Take(count);
