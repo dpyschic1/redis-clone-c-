@@ -9,7 +9,7 @@ public static class HandShakeResponse
         var replconf = RedisResponse.String("REPLCONF");
         var listeningPort = RedisResponse.String("listening-port");
         var portString = RedisResponse.String(ServerInfo.Port.ToString());
-        return RedisResponse.Array(replconf, portString, listeningPort);
+        return RedisResponse.Array(replconf, listeningPort, portString);
     }
     
     public static RedisCommand ReplConfCapa()
