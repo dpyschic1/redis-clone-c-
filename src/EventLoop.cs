@@ -231,6 +231,9 @@ public class EventLoop
             _running = false;
             return;
         }
+
+        host.Send(_serializer.Serialize(HandShakeResponse.PSync()));
+        host.Receive(buffer);
         
         host.Close();
     }

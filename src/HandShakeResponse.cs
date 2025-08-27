@@ -19,4 +19,12 @@ public static class HandShakeResponse
         var capaString = RedisResponse.String("psync2");
         return RedisResponse.Array(replconf, capa, capaString);
     }
+
+    public static RedisCommand PSync()
+    {
+        var psync = RedisResponse.String("PSYNC");
+        var psyncMasterId = RedisResponse.String("?");
+        var psyncMasterOffset = RedisResponse.String("-1");
+        return RedisResponse.Array(psync, psyncMasterId, psyncMasterOffset);
+    }
 }
