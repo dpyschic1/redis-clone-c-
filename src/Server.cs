@@ -40,6 +40,6 @@ public static class ServerInfo
 
     public static string ToStringReplication()
     {
-        return $"role:{MasterReplicaId}\nmaster_replid:{MasterReplicaId}\nmaster_repl_offset:{MasterReplicaOffset}";
+        return $"role:{MasterHost}\nmaster_replid:{MasterReplicaId}\nmaster_repl_offset:{MasterReplicaOffset}";
     }
 }
