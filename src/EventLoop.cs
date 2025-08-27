@@ -39,7 +39,8 @@ public class EventLoop
             var responseString = RedisResponse.String("PING");
             var responseToHost = _serializer.Serialize(RedisResponse.Array(responseString));
             var host = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            var ipEndpoint = new IPEndPoint(IPAddress.Parse(ServerInfo.MasterAddress), ServerInfo.MasterPort.Value);
+            var hostIp = Dns.GetHostAddresses(ServerInfo.MasterAddress);
+            var ipEndpoint = new IPEndPoint(hostIp[0], ServerInfo.MasterPort.Value);
             host.Connect(ipEndpoint);
             host.Send(responseToHost);
         }
