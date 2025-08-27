@@ -69,7 +69,7 @@ public class CommandExecutor
 
     private RedisCommand HandleExec(List<string> args, ClientState clientState)
     {
-        if (!_clientManager.TryGetTransactionForClient(clientState, out var commands))
+        if (_clientManager.TryGetTransactionForClient(clientState, out var commands))
         {
             if (commands.Count == 0) return RedisResponse.EmptyArray();
             var responses = new List<RedisCommand>();
