@@ -74,7 +74,7 @@ public class CommandExecutor
         var value = Database.Instance.IncrementIfNumber(key);
         if (value.HasValue) return RedisResponse.Integer(value.Value);
 
-        return RedisResponse.NullString();
+        return RedisResponse.Error("ERR value is not an integer or out of range");
     }
 
     private RedisCommand HandleXRead(List<string> args, ClientState clientState)
