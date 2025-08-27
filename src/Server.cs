@@ -24,7 +24,7 @@ for (int i = 0; i < args.Length; i++)
 }
 
 var port = cmdArgs.TryGetValue("port", out var portStr) ? int.Parse(portStr) : 6379;
-var isReplicaOf = cmdArgs.TryGetValue("replicaOf", out var value);
+var isReplicaOf = cmdArgs.TryGetValue("replicaof", out var value);
 
 if (isReplicaOf) ServerInfo.MasterHost = "slave";
 
