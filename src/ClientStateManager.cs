@@ -89,6 +89,7 @@ public class ClientStateManager
         if (_clientTransactions.TryGetValue(state, out var transaction))
         {
             transaction.Transactions.Enqueue(commands);
+            state.PendingReplies.Enqueue(RedisResponse.SimpleString("QUEUED"));
         }
     }
 
