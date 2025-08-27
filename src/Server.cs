@@ -35,9 +35,11 @@ eventLoop.Run();
 public static class ServerInfo
 {
     public static string MasterHost { get; set; } = "master";
+    public static string MasterReplicaId { get;} = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
+    public static int MasterReplicaOffset {get;set;} = 0;
 
     public static string ToStringReplication()
     {
-        return "role" + ":" + MasterHost;
+        return $"role:{MasterReplicaId}\nmaster_replid:{MasterReplicaId}\nmaster_repl_offset:{MasterReplicaOffset}";
     }
 }
