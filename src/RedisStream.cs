@@ -31,8 +31,13 @@ public class RedisStream
 
     public ImmutableSortedDictionary<StreamId, StreamEntry> RangeAfter(StreamId startId, int count)
     {
-        return _entries.Where(k => k.Key.CompareTo(startId) >= 0).Take(count)
-            .ToImmutableSortedDictionary(g => g.Key, g => g.Value);
+        var query = _entries.Where(k => k.Key.CompareTo(startId) >= 0);
+        if (count > 0)
+        {
+            query = query.Take(count);
+        }
+
+        return query.ToImmutableSortedDictionary(g => g.Key, g => g.Value);
     }
 
     private StreamId GenerateId(StreamId? id, bool isSequenceWildCard)
