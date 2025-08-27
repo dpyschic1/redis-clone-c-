@@ -39,6 +39,7 @@ public class CommandExecutor
             case "PING": return HandlePing(args);
             case "SET": return HandleSet(args);
             case "GET": return HandleGet(args);
+            case "INCR": return HandleIncr(args);
             case "LLEN": return HandleLlen(args);
             case "RPUSH": return HandleRPush(args);
             case "LPUSH": return HandleLPush(args);
@@ -64,6 +65,18 @@ public class CommandExecutor
         return argNode.ToString();
     }
 
+    private RedisCommand HandleIncr(List<string> args)
+    {
+        if (args.Count < 2) return RedisResponse.Error("ERR wrong number of arguments for INCR command");
+
+        var key = args[0];
+
+        var value = Database.Instance.IncrementIfNumber(key);
+        if (value.HasValue) return RedisResponse.Integer(value.Value);
+
+        return RedisResponse.NullString();
+    }
+
     private RedisCommand HandleXRead(List<string> args, ClientState clientState)
     {
         if (args.Count < 2) return RedisResponse.Error("ERR wrong number of arguments for XRange command");
@@ -72,7 +85,7 @@ public class CommandExecutor
         int i = 0;
         int count = -1;
         long blockMs = -1;
-        
+
         if (i < args.Count && args[i].ToUpper() == "COUNT")
         {
             i++;
@@ -133,7 +146,7 @@ public class CommandExecutor
             ["StreamAndIds"] = streamAndIds,
             ["Count"] = count
         };
-        
+
         _clientManager.BlockClient(clientState, streamAndIds.Keys.ToArray(), "XREAD", blockMs, parameters);
 
         return null;

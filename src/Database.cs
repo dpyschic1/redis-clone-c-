@@ -43,6 +43,22 @@ public class Database
         return null;
     }
 
+    public long? IncrementIfNumber(string key)
+    {
+        if (_dataStore.TryGetValue(key, out var value))
+        {
+            if (value.IsExpired || !long.TryParse(value.AsString(), out var intVal))
+            {
+                _dataStore.TryRemove(key, out _);
+                return null;
+            }
+
+            return intVal;
+        }
+
+        return null;
+    }
+
     public int ListLength(string key)
     {
         if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
@@ -266,8 +282,8 @@ public class RedisValue
     {
         Type = type;
         Value = value;
-        ExpiryTime =  expiry.HasValue 
-            ? DateTimeOffset.UtcNow.Add(expiry.Value).ToUnixTimeMilliseconds() 
+        ExpiryTime = expiry.HasValue
+            ? DateTimeOffset.UtcNow.Add(expiry.Value).ToUnixTimeMilliseconds()
             : long.MaxValue;
     }
 
@@ -275,7 +291,7 @@ public class RedisValue
     public static RedisValue FromList(List<string> l) => new(RedisDataType.List, l);
     public static RedisValue FromStream(RedisStream stream) => new(RedisDataType.Stream, stream);
     public string AsString() => (string)Value;
-    public long AsInt() =>  (long)Value;
+    public long AsInt() => (long)Value;
     public List<string> AsList() => (List<string>)Value;
     public RedisStream AsStream() => (RedisStream)Value;
 }
