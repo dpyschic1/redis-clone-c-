@@ -34,11 +34,20 @@ public class EventLoop
 
     public void Run()
     {
+        if (!ServerInfo.IsMaster())
+        {
+            var responseString = RedisResponse.String("PING");
+            var responseToHost = _serializer.Serialize(RedisResponse.Array(responseString));
+            var host = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            var ipEndpoint = new IPEndPoint(IPAddress.Parse(ServerInfo.MasterAddress), ServerInfo.MasterPort.Value);
+            host.Connect(ipEndpoint);
+            host.Send(responseToHost);
+        }
         while (_running)
         {
             var readList = new List<Socket>(_clients) { _listener };
             var writeList = new List<Socket>();
-
+            
             foreach (var kv in _clientStates)
             {
                 if (kv.Value.PendingReplies.Count > 0)
