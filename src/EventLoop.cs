@@ -50,7 +50,7 @@ public class EventLoop
 
             foreach (var kv in _clientStates)
             {
-                if (kv.Value.PendingReplies.Count > 0)
+                if (kv.Value.PendingReplies.Count > 0 || kv.Value.PendingWrites.Count > 0)
                 {
                     writeList.Add(kv.Key);
                 }
