@@ -5,18 +5,8 @@ namespace Server;
 public class CommandExecutor
 {
     private readonly ClientStateManager _clientManager = ClientStateManager.Instance;
-    private static readonly HashSet<string> WriteCommands = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "SET", "INCR", "DECR", "RPUSH", "LPUSH", "LPOP", "RPOP", 
-        "XADD"
-    };
 
-    private static readonly HashSet<string> HandshakeCommands = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "INFO", "REPLCONF", "PSYNC"
-    };
-    
-    public RedisCommand? Execute(RedisCommand node, ClientState clientState)
+    public RedisCommand Execute(RedisCommand node, ClientState clientState)
     {
         if (node == null) throw new ArgumentNullException(nameof(node));
         if (!node.IsArray) return RedisResponse.Error("Protocol error: expected array");
@@ -24,7 +14,7 @@ public class CommandExecutor
         return ExecuteArrayCommand(node, clientState);
     }
 
-    private RedisCommand? ExecuteArrayCommand(RedisCommand arrayNode, ClientState clientState)
+    private RedisCommand ExecuteArrayCommand(RedisCommand arrayNode, ClientState clientState)
     {
         if (arrayNode.Items?.Count == 0)
         {
@@ -43,39 +33,31 @@ public class CommandExecutor
             args.Add(Eval(argNode));
         }
         
-        var result =  cmdName.ToUpperInvariant() switch
+        switch (cmdName.ToUpperInvariant())
         {
-            "ECHO" => HandleEcho(args),
-            "PING" => HandlePing(args),
-            "SET" => HandleSet(args),
-            "GET" => HandleGet(args),
-            "INCR" => HandleIncr(args),
-            "LLEN" => HandleLlen(args),
-            "RPUSH" => HandleRPush(args),
-            "LPUSH" => HandleLPush(args),
-            "LPOP" => HandleLPop(args),
-            "LRANGE" => HandleLRange(args),
-            "BLPOP" => HandleBLPop(args, clientState),
-            "TYPE" => HandleType(args),
-            "XADD" => HandleXAdd(args),
-            "XRANGE" => HandleXRange(args),
-            "XREAD" => HandleXRead(args, clientState),
-            "MULTI" => HandleMulti(clientState),
-            "EXEC" => HandleExec(clientState),
-            "DISCARD" => HandleDiscard(clientState),
-            "INFO" => HandleInfo(args),
-            "REPLCONF" => HandleReplConf(args, clientState),
-            "PSYNC" => HandlePSync(args, clientState),
-            _ => RedisResponse.Error($"ERR unknown command '{cmdName}'")
-        };
-
-        if (result != null)
-        {
-            result.IsWrite = WriteCommands.Contains(cmdName);
-            result.IsHandShake = HandshakeCommands.Contains(cmdName);
+            case "ECHO": return HandleEcho(args);
+            case "PING": return HandlePing(args);
+            case "SET": return HandleSet(args);
+            case "GET": return HandleGet(args);
+            case "INCR": return HandleIncr(args);
+            case "LLEN": return HandleLlen(args);
+            case "RPUSH": return HandleRPush(args);
+            case "LPUSH": return HandleLPush(args);
+            case "LPOP": return HandleLPop(args);
+            case "LRANGE": return HandleLRange(args);
+            case "BLPOP": return HandleBLPop(args, clientState);
+            case "TYPE": return HandleType(args);
+            case "XADD": return HandleXAdd(args);
+            case "XRANGE": return HandleXRange(args);
+            case "XREAD": return HandleXRead(args, clientState);
+            case "MULTI": return HandleMulti(clientState);
+            case "EXEC": return HandleExec(clientState);
+            case "DISCARD": return HandleDiscard(clientState);
+            case "INFO": return HandleInfo(args);
+            case "REPLCONF": return HandleReplConf(args, clientState);
+            case "PSYNC": return HandlePSync(args, clientState);
+            default: return RedisResponse.Error($"ERR unknown command '{cmdName}'");
         }
-        
-        return result;
     }
 
     private string Eval(RedisCommand argNode)

@@ -9,7 +9,18 @@ public class RedisProtocolParser
     private const byte DOLLAR = (byte)'$';
     private const byte MINUS = (byte)'-';
     private const byte INTEGER = (byte)':';
+    
+    private static readonly HashSet<string> WriteCommands = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "SET", "INCR", "DECR", "RPUSH", "LPUSH", "LPOP", "RPOP", 
+        "XADD"
+    };
 
+    private static readonly HashSet<string> HandshakeCommands = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "INFO", "REPLCONF", "PSYNC"
+    };
+    
     public bool TryParse(string input, out RedisCommand output, out int consumed)
     {
         consumed = 0;
@@ -21,6 +32,12 @@ public class RedisProtocolParser
         using var memStream = new RedisMemoryStream(inputBytes);
         output = ParseNode(memStream);
         consumed = (int)memStream.Position;
+        
+        if (output != null)
+        {
+            ClassifyCommand(output);
+        }
+        
         return output != null;
     }
 
@@ -105,6 +122,19 @@ public class RedisProtocolParser
             Type = RedisType.Integer,
             IntegerValue = v
         };
+    }
+
+    private void ClassifyCommand(RedisCommand command)
+    {
+        if (!command.IsArray || command.Items?.Count == 0)
+            return;
+        
+        var commandName = command.Items[0]?.ToString()?.ToUpperInvariant();
+        if (string.IsNullOrEmpty(commandName))
+            return;
+        
+        command.IsWrite = WriteCommands.Contains(commandName);
+        command.IsHandShake = HandshakeCommands.Contains(commandName);
     }
 }
 
