@@ -111,6 +111,11 @@ public class EventLoop
 
             if (received == 0)
             {
+                if (client == _master)
+                {
+                    Console.WriteLine("Master connection closed.");
+                    return;
+                }
                 CloseClient(client);
                 return;
             }
