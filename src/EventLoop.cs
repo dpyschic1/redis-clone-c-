@@ -111,9 +111,8 @@ public class EventLoop
 
             if (received == 0)
             {
-                if (client == _master)
+                if (client == _master && client.Connected)
                 {
-                    Console.WriteLine("Master connection closed.");
                     return;
                 }
                 CloseClient(client);
@@ -147,7 +146,6 @@ public class EventLoop
                 {
                     if (command.CommandName.StartsWith("REPLCONF"))
                     {
-                        Console.WriteLine("Enquing response for REPLCONF ACK command");
                         state.PendingReplies.Enqueue(result);
                     }   
                 }
@@ -277,9 +275,11 @@ public class EventLoop
             {
                 int length = int.Parse(bulkHeader.Substring(1));
                 DiscardExact(host, length);
+                
             }
         }
 
+        host.Blocking = false;
         _master = host;
     }
     private string ReadLine(Socket socket)
