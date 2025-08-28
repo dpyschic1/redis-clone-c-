@@ -231,6 +231,7 @@ public class EventLoop
 
     private void HandleHandshake()
     {
+        //TODO: Fix first missing command from master to slave.
         var buffer = new byte[1024];
         var host = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         var hostIp = ServerInfo.MasterAddress == "localhost" ? IPAddress.Loopback : Dns.GetHostAddresses(ServerInfo.MasterAddress)[0];
