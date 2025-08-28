@@ -261,12 +261,47 @@ public class EventLoop
 
         if (_redisParser.Parse(buffer).StringValue.StartsWith("FULLRESYNC"))
         {
-            host.Receive(buffer);
+            string bulkHeader = ReadLine(host);
+            if (bulkHeader.StartsWith("$"))
+            {
+                int length = int.Parse(bulkHeader.Substring(1));
+                DiscardExact(host, length);
+            }
         }
 
         _master = host;
     }
+    private string ReadLine(Socket socket)
+    {
+        var lineBuffer = new List<byte>();
+        var single = new byte[1];
+        while (true)
+        {
+            int read = socket.Receive(single, 0, 1, SocketFlags.None);
+            if (read == 0) throw new Exception("Socket closed while reading line");
+            lineBuffer.Add(single[0]);
+            if (lineBuffer.Count >= 2 &&
+                lineBuffer[^2] == (byte)'\r' &&
+                lineBuffer[^1] == (byte)'\n')
+            {
+                break;
+            }
+        }
+        return Encoding.UTF8.GetString(lineBuffer.ToArray()).TrimEnd('\r', '\n');
+    }
 
+    private void DiscardExact(Socket socket, int length)
+    {
+        var buffer = new byte[4096];
+        int readTotal = 0;
+        while (readTotal < length)
+        {
+            int toRead = Math.Min(buffer.Length, length - readTotal);
+            int read = socket.Receive(buffer, 0, toRead, SocketFlags.None);
+            if (read == 0) throw new Exception("Socket closed early while discarding");
+            readTotal += read;
+        }
+    }
     public void Stop() => _running = false;
     
 }
