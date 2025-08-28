@@ -112,8 +112,9 @@ public class EventLoop
                 CloseClient(client);
                 return;
             }
-
-            state.InputBuffer.Append(Encoding.UTF8.GetString(buffer, 0, received));
+            var actualData = new byte[received];
+            Array.Copy(buffer, 0, actualData, 0, received);
+            state.InputBuffer.Append(Encoding.UTF8.GetString(actualData, 0, received));
 
             while (true)
             {
@@ -139,7 +140,7 @@ public class EventLoop
                 if (client == _master || !ServerInfo.IsMaster()) continue;
                 
                 if(command.IsWrite && !command.IsHandShake)
-                    ReplicationManager.Instance.DispatchToSlaves(buffer);
+                    ReplicationManager.Instance.DispatchToSlaves(actualData);
                     
                 state.PendingReplies.Enqueue(result);
             }
