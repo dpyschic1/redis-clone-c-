@@ -69,10 +69,12 @@ public class EventLoop
                 readList.Remove(_listener);
             }
 
-            if (readList.Contains(_master))
+            if (_master != null && readList.Contains(_master))
             {
-                _clientStates[_master] = new ClientState();
-                readList.Remove(_master);
+                if (!_clientStates.ContainsKey(_master))
+                {
+                    _clientStates[_master] = new ClientState();
+                }
             }
 
             foreach (var client in readList)
