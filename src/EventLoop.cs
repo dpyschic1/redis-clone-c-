@@ -139,7 +139,7 @@ public class EventLoop
 
                 if (client == _master || !ServerInfo.IsMaster())
                 {
-                    if(command.IsHandShake && command.StringValue == "replication")
+                    if(command.IsHandShake && command.CommandName() == "INFO")
                         state.PendingReplies.Enqueue(result);
 
                     continue;

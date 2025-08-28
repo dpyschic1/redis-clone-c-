@@ -161,6 +161,16 @@ public class RedisCommand
             return IntegerValue?.ToString();
         return null;
     }
+
+    public string CommandName()
+    {
+        if (IsArray)
+        {
+            return Items[0]?.ToString().ToUpperInvariant() ?? string.Empty;
+        }
+        
+        return string.Empty;
+    }
 }
 
 public enum RedisType
