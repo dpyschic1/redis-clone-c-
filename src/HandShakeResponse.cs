@@ -27,4 +27,12 @@ public static class HandShakeResponse
         var psyncMasterOffset = RedisResponse.String("-1");
         return RedisResponse.Array(psync, psyncMasterId, psyncMasterOffset);
     }
+
+    public static RedisCommand ReplConfAck()
+    {
+        var replconf = RedisResponse.String("REPLCONF");
+        var ack = RedisResponse.String("ACK");
+        var offset = RedisResponse.String(ServerInfo.MasterReplicaOffset.ToString());
+        return RedisResponse.Array(replconf, ack, offset);
+    }
 }

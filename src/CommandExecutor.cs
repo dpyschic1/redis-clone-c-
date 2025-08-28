@@ -81,6 +81,18 @@ public class CommandExecutor
     public RedisCommand HandleReplConf(List<string> args, ClientState state)
     {
         if(args.Count < 2) return RedisResponse.Error("ERR missing arguments");
+        
+        var key = args[0];
+        var value = args[1];
+
+        if (!ServerInfo.IsMaster && key.ToUpperInvariant() == "GETACK")
+        {
+            if (value == "*")
+            {
+                return HandShakeResponse.ReplConfAck();
+            }
+        }
+        
         ReplicationManager.Instance.RegisterSlave(state);
         return RedisResponse.Ok();
     }
