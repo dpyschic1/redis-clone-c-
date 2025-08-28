@@ -131,13 +131,17 @@ public class EventLoop
                     continue;
                 }
                 
+                
                 var result = _commandExecutor.Execute(command, state);
 
-                if (result != null && client != _master && ServerInfo.IsMaster())
-                {
+                if (result == null) continue;
+
+                if (client == _master || !ServerInfo.IsMaster()) continue;
+                
+                if(command.IsWrite && !command.IsHandShake)
                     ReplicationManager.Instance.DispatchToSlaves(buffer);
-                    state.PendingReplies.Enqueue(result);
-                }
+                    
+                state.PendingReplies.Enqueue(result);
             }
 
         }

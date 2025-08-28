@@ -115,6 +115,8 @@ public class RedisCommand
     public long? IntegerValue { get; set; }
     public byte[] BinaryValue { get; set; }
     public List<RedisCommand> Items { get; set; } = new();
+    public bool IsHandShake { get; set; } = false;
+    public bool IsWrite { get; set; } = false;
     public bool IsArray => Type == RedisType.Array;
     public bool IsBulkString => Type == RedisType.BulkString || Type == RedisType.NullBulkString;
     public bool IsSimpleString => Type == RedisType.SimpleString;
