@@ -34,7 +34,7 @@ public class EventLoop
 
     public void Run()
     {
-        if (!ServerInfo.IsMaster())
+        if (!ServerInfo.IsMaster)
         {
             HandleHandshake();
         }
@@ -43,7 +43,7 @@ public class EventLoop
             var readList = new List<Socket>(_clients) { _listener };
             var writeList = new List<Socket>();
 
-            if (!ServerInfo.IsMaster() && _master != null)
+            if (!ServerInfo.IsMaster && _master != null)
             {
                 readList.Add(_master);
             }
@@ -136,19 +136,13 @@ public class EventLoop
                 var result = _commandExecutor.Execute(command, state);
 
                 if (result == null) continue;
-
-                if (client == _master || !ServerInfo.IsMaster())
-                {
-                    if(command.IsHandShake && command.CommandName() == "INFO")
-                        state.PendingReplies.Enqueue(result);
-
-                    continue;
-                }
+                if(client ==  _master) continue;
                 
-                if(command.IsWrite && !command.IsHandShake)
+                state.PendingReplies.Enqueue(result);
+                
+                if(command.IsWrite && !command.IsHandShake && ServerInfo.IsMaster)
                     ReplicationManager.Instance.DispatchToSlaves(actualData);
                     
-                state.PendingReplies.Enqueue(result);
             }
 
         }

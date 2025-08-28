@@ -128,8 +128,8 @@ public class RedisProtocolParser
     {
         if (!command.IsArray || command.Items?.Count == 0)
             return;
-        
-        var commandName = command.Items[0]?.ToString()?.ToUpperInvariant();
+
+        var commandName = command.CommandName;
         if (string.IsNullOrEmpty(commandName))
             return;
         
@@ -152,6 +152,7 @@ public class RedisCommand
     public bool IsSimpleString => Type == RedisType.SimpleString;
     public bool IsError => Type == RedisType.Error;
     public bool IsInteger => Type == RedisType.Integer;
+    public string CommandName => Type == RedisType.Array ? Items[0].ToString().ToUpperInvariant() : string.Empty;
 
     public override string ToString()
     {
@@ -160,16 +161,6 @@ public class RedisCommand
         if (IsInteger)
             return IntegerValue?.ToString();
         return null;
-    }
-
-    public string CommandName()
-    {
-        if (IsArray)
-        {
-            return Items[0]?.ToString().ToUpperInvariant() ?? string.Empty;
-        }
-        
-        return string.Empty;
     }
 }
 

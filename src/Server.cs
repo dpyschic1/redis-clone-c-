@@ -47,7 +47,7 @@ public static class ServerInfo
     
     public static string? MasterAddress  {get;set;}
     public static int? MasterPort {get;set;}
-    public static bool IsMaster() => MasterHost == "master";
+    public static bool IsMaster => MasterHost == "master";
     
     public static int Port { get; set; }
 

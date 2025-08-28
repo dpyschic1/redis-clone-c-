@@ -16,12 +16,7 @@ public class CommandExecutor
 
     private RedisCommand ExecuteArrayCommand(RedisCommand arrayNode, ClientState clientState)
     {
-        if (arrayNode.Items?.Count == 0)
-        {
-            return RedisResponse.Error("Protocol error: empty array");
-        }
-        var command = arrayNode.Items[0];
-        var cmdName = command.ToString();
+        var cmdName = arrayNode.CommandName;
         if (string.IsNullOrEmpty(cmdName))
         {
             return RedisResponse.Error("Protocol error: command name is empty");
@@ -33,7 +28,7 @@ public class CommandExecutor
             args.Add(Eval(argNode));
         }
         
-        switch (cmdName.ToUpperInvariant())
+        switch (cmdName)
         {
             case "ECHO": return HandleEcho(args);
             case "PING": return HandlePing(args);
