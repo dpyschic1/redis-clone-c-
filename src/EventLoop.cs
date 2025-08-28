@@ -137,7 +137,13 @@ public class EventLoop
 
                 if (result == null) continue;
 
-                if (client == _master || !ServerInfo.IsMaster()) continue;
+                if (client == _master || !ServerInfo.IsMaster())
+                {
+                    if(command.IsHandShake && command.StringValue == "replication")
+                        state.PendingReplies.Enqueue(result);
+
+                    continue;
+                }
                 
                 if(command.IsWrite && !command.IsHandShake)
                     ReplicationManager.Instance.DispatchToSlaves(actualData);
