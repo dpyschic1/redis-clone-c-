@@ -23,8 +23,6 @@ public class Database
     {
         if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
         if (value == null) throw new ArgumentNullException(nameof(value));
-        var hostType = ServerInfo.IsMaster ? "master" : "slave";
-        Console.WriteLine($"Set command called for {hostType}, for value {value}, on port {ServerInfo.Port}");
         
         _dataStore[key] = new RedisValue(RedisDataType.String, value, expiry);
         return true;
