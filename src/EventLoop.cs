@@ -143,7 +143,14 @@ public class EventLoop
                 var result = _commandExecutor.Execute(command, state);
 
                 if (result == null) continue;
-                if(client ==  _master) continue;
+                if (client == _master)
+                {
+                    if (command.CommandName.StartsWith("REPLCONF"))
+                    {
+                        Console.WriteLine("Enquing response for REPLCONF ACK command");
+                        state.PendingReplies.Enqueue(result);
+                    }   
+                }
                 
                 state.PendingReplies.Enqueue(result);
                 
@@ -176,12 +183,13 @@ public class EventLoop
             state.PendingWrites.Enqueue(bytes);
         }
 
+        int sent = 0;
         while (state.PendingWrites.Count > 0)
         {
             var data = state.PendingWrites.Peek();
             try
             {
-                int sent = client.Send(data);
+                sent = client.Send(data);
                 if (sent < data.Length)
                 {
                     var remaining = new byte[data.Length - sent];
@@ -190,13 +198,16 @@ public class EventLoop
                     state.PendingWrites.Enqueue(remaining);
                     break;
                 }
+                
                 state.PendingWrites.Dequeue();
             }
             catch (SocketException ex)
             {
                 Console.WriteLine("Socket exception during send: {0}", ex.Message);
-                return;
+                break;
             }
+            
+            if (client == _master && !ServerInfo.IsMaster) ServerInfo.MasterReplicaOffset = sent;
         }
     }
     private void CloseClient(Socket client)

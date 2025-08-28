@@ -89,6 +89,7 @@ public class CommandExecutor
         {
             if (value == "*")
             {
+                Console.WriteLine("Generating repl ack command for slave");
                 return HandShakeResponse.ReplConfAck();
             }
         }
