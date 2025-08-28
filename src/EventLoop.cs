@@ -10,12 +10,12 @@ public class EventLoop
     private readonly List<Socket> _clients = new();
     private readonly Dictionary<Socket, ClientState> _clientStates = new();
     private readonly ClientStateManager _clientManager = ClientStateManager.Instance;
+    private Socket? _master;
     private bool _running = true;
 
     private readonly RedisProtocolParser _redisParser;
     private readonly CommandExecutor _commandExecutor;
     private readonly RedisSerializer _serializer;
-
 
     public EventLoop(int port, RedisProtocolParser redisParser, CommandExecutor commandExecutor, RedisSerializer serializer)
     {
@@ -36,13 +36,18 @@ public class EventLoop
     {
         if (!ServerInfo.IsMaster())
         {
-            HandleMasterSlave();   
+            HandleHandshake();
         }
         while (_running)
         {
             var readList = new List<Socket>(_clients) { _listener };
             var writeList = new List<Socket>();
-            
+
+            if (!ServerInfo.IsMaster() && _master != null)
+            {
+                readList.Add(_master);
+            }
+
             foreach (var kv in _clientStates)
             {
                 if (kv.Value.PendingReplies.Count > 0)
@@ -62,6 +67,12 @@ public class EventLoop
                 _clients.Add(client);
                 _clientStates[client] = new ClientState();
                 readList.Remove(_listener);
+            }
+
+            if (readList.Contains(_master))
+            {
+                _clientStates[_master] = new ClientState();
+                readList.Remove(_master);
             }
 
             foreach (var client in readList)
@@ -122,8 +133,9 @@ public class EventLoop
                 
                 var result = _commandExecutor.Execute(command, state);
 
-                if (result != null)
+                if (result != null && client != _master && ServerInfo.IsMaster())
                 {
+                    ReplicationManager.Instance.DispatchToSlaves(buffer);
                     state.PendingReplies.Enqueue(result);
                 }
             }
@@ -196,14 +208,14 @@ public class EventLoop
         client.Close();
     }
 
-    private void HandleMasterSlave()
+    private void HandleHandshake()
     {
         var buffer = new byte[1024];
         var host = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        var hostIp = ServerInfo.MasterAddress == "localhost" ?  IPAddress.Loopback : Dns.GetHostAddresses(ServerInfo.MasterAddress)[0];
+        var hostIp = ServerInfo.MasterAddress == "localhost" ? IPAddress.Loopback : Dns.GetHostAddresses(ServerInfo.MasterAddress)[0];
         var ipEndpoint = new IPEndPoint(hostIp, ServerInfo.MasterPort.Value);
         host.Connect(ipEndpoint);
-        
+
         host.Send(_serializer.Serialize(HandShakeResponse.Ping()));
         host.Receive(buffer);
         var parsedHost = _redisParser.Parse(buffer);
@@ -239,10 +251,11 @@ public class EventLoop
         {
             host.Receive(buffer);
         }
-        
-        host.Close();
+
+        _master = host;
     }
-    
+
     public void Stop() => _running = false;
+    
 }
 

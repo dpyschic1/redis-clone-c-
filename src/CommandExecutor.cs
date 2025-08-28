@@ -54,7 +54,7 @@ public class CommandExecutor
             case "EXEC": return HandleExec(clientState);
             case "DISCARD": return HandleDiscard(clientState);
             case "INFO": return HandleInfo(args);
-            case "REPLCONF": return HandleReplConf(args);
+            case "REPLCONF": return HandleReplConf(args, clientState);
             case "PSYNC": return HandlePSync(args, clientState);
             default: return RedisResponse.Error($"ERR unknown command '{cmdName}'");
         }
@@ -83,10 +83,10 @@ public class CommandExecutor
         return RedisResponse.Binary(fileContents);
     }
     
-    public RedisCommand HandleReplConf(List<string> args)
+    public RedisCommand HandleReplConf(List<string> args, ClientState state)
     {
         if(args.Count < 2) return RedisResponse.Error("ERR missing arguments");
-
+        ReplicationManager.Instance.RegisterSlave(state);
         return RedisResponse.Ok();
     }
     
